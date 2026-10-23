@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import "@fontsource-variable/inter";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Campaigns", template: "%s · EVOQ Campaigns" },
@@ -16,7 +15,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       <body suppressHydrationWarning>
         <a
           href="#main"
