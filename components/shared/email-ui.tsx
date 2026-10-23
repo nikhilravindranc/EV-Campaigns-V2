@@ -29,10 +29,11 @@ export function EmailFrame({ content, preheader, title, className, width }: { co
  * A scaled-down, non-interactive preview of the top of an email, sized to its
  * container (600px design width). Rendered lazily, once it scrolls into view.
  */
-export function EmailThumb({ content, className, designWidth = 600 }: { content: EmailContent; className?: string; designWidth?: number }) {
+export function EmailThumb({ content, className, designWidth = 600, eager = false }: { content: EmailContent; className?: string; designWidth?: number; eager?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const [seen, setSeen] = useState(false);
+  const [seenOnce, setSeen] = useState(false);
+  const seen = eager || seenOnce;
   const doc = useMemo(() => (seen ? renderEmailDocument(content) : ""), [content, seen]);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function EmailThumb({ content, className, designWidth = 600 }: { content:
           title=""
           srcDoc={doc}
           sandbox=""
+          scrolling="no"
           tabIndex={-1}
           loading="lazy"
           className="pointer-events-none absolute top-0 left-0 origin-top-left border-0"

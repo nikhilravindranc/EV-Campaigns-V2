@@ -21,6 +21,38 @@ export interface Audience {
   kind?: "list" | "segment";
 }
 
+/** A subject-line test: two versions go to a slice of the audience, the better one goes to everyone else. */
+export interface AbTest {
+  subjectB: string;
+  /** % of recipients in the test, split evenly between A and B. */
+  testPercent: number;
+  /** What decides the winner. */
+  metric: "opens" | "clicks";
+  /** How long the test runs before the winner is sent. */
+  hours: number;
+}
+
+export interface AbVariant {
+  key: "a" | "b";
+  subject: string;
+  sent: number;
+  opens: number;
+  openRate: number;
+  clicks: number;
+  clickRate: number;
+}
+
+export interface AbResult {
+  phase: "testing" | "decided";
+  metric: AbTest["metric"];
+  variants: AbVariant[];
+  winner: "a" | "b" | null;
+  /** Recipients outside the test group, who get the winner. */
+  remainder: number;
+  /** When the winner is (or was) chosen. */
+  decidesAt: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -29,6 +61,8 @@ export interface Campaign {
   /** Email-like campaigns (email, automation, journey). */
   subject?: string;
   previewText?: string;
+  /** Subject-line A/B test (email only). */
+  abTest?: AbTest;
   /** SMS body. */
   message?: string;
   senderName: string;
@@ -183,6 +217,8 @@ export interface CampaignAnalytics {
   /** Email clients, or mobile carriers for SMS. */
   clients: { name: string; value: number }[];
   links: { label: string; url: string; clicks: number; unique: number }[];
+  /** Subject-line test results, when the campaign ran one. */
+  ab?: AbResult;
   /** Account average for the same channel, for comparison chips. */
   benchmark: { openRate: number; clickRate: number; bounceRate: number; unsubscribeRate: number; deliveryRate: number };
 }
@@ -210,6 +246,8 @@ export interface CampaignEdit {
   name: string;
   subject?: string;
   previewText?: string;
+  /** null removes the test. */
+  abTest?: AbTest | null;
   message?: string;
   senderName?: string;
   senderEmail?: string;

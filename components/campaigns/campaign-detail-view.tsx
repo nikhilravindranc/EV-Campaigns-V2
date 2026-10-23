@@ -15,10 +15,13 @@ import {
   CopyIcon,
   CursorClickIcon,
   DotsThreeIcon,
+  DownloadSimpleIcon,
   EnvelopeOpenIcon,
   EnvelopeSimpleIcon,
   EyeIcon,
   FileDashedIcon,
+  FlaskIcon,
+  TrophyIcon,
   LinkSimpleIcon,
   PaperPlaneTiltIcon,
   PauseIcon,
@@ -41,8 +44,9 @@ import { EmptyState, ErrorState } from "@/components/shared/state-panels";
 import { useCampaign } from "@/hooks/use-campaigns";
 import { canPause, canResume, canSchedule, CHART_HEX, contentLocked, hasPlannedTime, isFlow, isSms, smsSegments, TYPE_META } from "@/lib/campaign-meta";
 import { daysBetween, formatCompact, formatDate, formatDateTime, formatNumber, formatPercent, parseDateTime, pct, pluralize } from "@/lib/format";
+import { downloadText, reportCsv } from "@/lib/report-csv";
 import { getCampaignsListHref } from "@/lib/routes";
-import type { Campaign, CampaignAnalytics, CampaignEvent } from "@/lib/types/campaigns";
+import type { AbResult, Campaign, CampaignAnalytics, CampaignEvent } from "@/lib/types/campaigns";
 import { cn } from "@/lib/utils";
 import { useCampaignActions } from "./campaign-actions";
 
@@ -373,6 +377,67 @@ function BreakdownCard({ c, a, className }: { c: Campaign; a: CampaignAnalytics;
   );
 }
 
+/** Subject-line test: both versions side by side, the leader marked, and what happens next. */
+function AbTestCard({ ab, className }: { ab: AbResult; className?: string }) {
+  const metricRate = (v: AbResult["variants"][number]) => (ab.metric === "opens" ? v.openRate : v.clickRate);
+  const lead = ab.variants.reduce((x, y) => (metricRate(y) > metricRate(x) ? y : x));
+  const trail = ab.variants.find((v) => v !== lead)!;
+  const lift = metricRate(trail) > 0 ? ((metricRate(lead) - metricRate(trail)) / metricRate(trail)) * 100 : 0;
+  const label = ab.metric === "opens" ? "open rate" : "click rate";
+  return (
+    <Card label="Subject line A/B test" className={className}>
+      <CardHeader
+        title={
+          <>
+            <FlaskIcon size={17} aria-hidden className="text-campaign-action" /> Subject Line A/B Test
+          </>
+        }
+        subtitle={ab.phase === "decided" ? `Version ${ab.winner?.toUpperCase()} won on ${label}, up ${lift.toFixed(1)}%. It was sent to the remaining ${formatNumber(ab.remainder)} recipients.` : `Test running. The winner is chosen by ${label} on ${formatDateTime(ab.decidesAt)}.`}
+      />
+      <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
+        {ab.variants.map((v) => {
+          const won = ab.winner === v.key;
+          const main = ab.metric === "opens" ? v.openRate : v.clickRate;
+          return (
+            <div key={v.key} className={cn("rounded-xl border p-4", won ? "border-[#BFE5D6] bg-[var(--success-bg)]" : "border-line bg-white")}>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex size-6 items-center justify-center rounded-md bg-campaign-tint text-[12px] font-semibold text-campaign-action">{v.key.toUpperCase()}</span>
+                <p className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink" title={v.subject}>
+                  {v.subject}
+                </p>
+                {won && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold text-[var(--success)] ring-1 ring-[#BFE5D6]">
+                    <TrophyIcon size={12} weight="fill" aria-hidden /> Winner
+                  </span>
+                )}
+              </div>
+              <p className="mt-3 text-[26px] leading-8 font-semibold text-ink tabular-nums">{formatPercent(main)}</p>
+              <p className="text-[12px] text-ink-muted">{label} · {formatNumber(v.sent)} recipients</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/80 ring-1 ring-line-soft">
+                <div className={cn("h-full rounded-full", won ? "bg-[var(--success)]" : "bg-campaign-action")} style={{ width: `${Math.min(100, (main / Math.max(1, metricRate(lead))) * 100)}%` }} />
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-[12.5px]">
+                <div>
+                  <dt className="text-ink-muted">Opens</dt>
+                  <dd className="font-medium text-ink tabular-nums">
+                    {formatNumber(v.opens)} · {formatPercent(v.openRate)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink-muted">Clicks</dt>
+                  <dd className="font-medium text-ink tabular-nums">
+                    {formatNumber(v.clicks)} · {formatPercent(v.clickRate)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 function LinksCard({ c, a, className }: { c: Campaign; a: CampaignAnalytics; className?: string }) {
   const total = a.links.reduce((s, l) => s + l.clicks, 0);
   return (
@@ -624,6 +689,11 @@ export function CampaignDetailView({ id }: { id: string }) {
             </div>
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               {backLink}
+              {a && (
+                <OutlineButton icon={DownloadSimpleIcon} onClick={() => downloadText(`${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "campaign"}-report.csv`, reportCsv(c, a))}>
+                  Export report
+                </OutlineButton>
+              )}
               <OutlineButton icon={CopyIcon} onClick={() => actions.duplicate(c)} disabled={actions.busy}>
                 Duplicate
               </OutlineButton>
@@ -655,6 +725,7 @@ export function CampaignDetailView({ id }: { id: string }) {
               <div className="mt-4">
                 <KpiRow c={c} a={a} />
               </div>
+              {a.ab && <AbTestCard ab={a.ab} className="mt-4" />}
               <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
                 <EngagementCard c={c} a={a} className="xl:col-span-2" />
                 <DeliveryCard c={c} />

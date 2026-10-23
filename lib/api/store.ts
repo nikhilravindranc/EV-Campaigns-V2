@@ -9,7 +9,7 @@
  * collection, and the demo keeps working when storage is unavailable.
  */
 import { addMinutes } from "@/lib/format";
-import { DEMO_NOW, seedActivity, seedCampaigns } from "@/lib/mock-data/campaigns";
+import { AB_SEEDS, DEMO_NOW, seedActivity, seedCampaigns } from "@/lib/mock-data/campaigns";
 import { seedContacts, seedLists, seedSegments } from "@/lib/mock-data/contacts";
 import { seedTemplates } from "@/lib/mock-data/templates";
 import { seedFiles, seedForms, seedWaCampaigns, seedWaTemplates, seedWorkflows } from "@/lib/mock-data/workspace";
@@ -105,11 +105,22 @@ function contactsFrom(seed: Contact[], delta: unknown): Contact[] {
   return [...added, ...kept];
 }
 
-/** Ready-made templates added in a later release join data saved before it (people's own templates are untouched). */
+/**
+ * Ready-made templates added in a later release join data saved before it, and the ones already
+ * saved take their latest design, so artwork updates show up (people's own templates are untouched).
+ */
 function withNewGallery(saved: EmailTemplate[]): EmailTemplate[] {
+  const all = seedTemplates();
+  const seed = all.filter((t) => t.system);
+  const latest = new Map(all.map((t) => [t.id, t]));
+  // Ready-made templates always take their latest design; sample "My templates" do too until someone edits them.
+  const refreshed = saved.map((t) => {
+    const fresh = latest.get(t.id);
+    return fresh && (t.system || t.updatedAt === fresh.updatedAt) ? { ...t, content: fresh.content } : t;
+  });
   const have = new Set(saved.map((t) => t.id));
-  const missing = seedTemplates().filter((t) => t.system && !have.has(t.id));
-  return missing.length ? [...saved, ...missing] : saved;
+  const missing = seed.filter((t) => !have.has(t.id));
+  return missing.length ? [...refreshed, ...missing] : refreshed;
 }
 
 function load(): State {
@@ -119,7 +130,7 @@ function load(): State {
   contactSeed = new Map(seeded.map((c) => [c.id, c]));
   clockBase = typeof saved.clock === "number" && saved.clock >= 0 ? saved.clock : 0;
   state = {
-    campaigns: isRecordArray<Campaign>(saved.campaigns, (x) => typeof x.status === "string" && Array.isArray(x.history)) ? saved.campaigns : seedCampaigns(),
+    campaigns: isRecordArray<Campaign>(saved.campaigns, (x) => typeof x.status === "string" && Array.isArray(x.history)) ? saved.campaigns.map((c) => (c.abTest === undefined && AB_SEEDS[c.id] ? { ...c, abTest: AB_SEEDS[c.id] } : c)) : seedCampaigns(),
     activity: isRecordArray<ActivityEntry>(saved.activity) ? saved.activity : seedActivity(),
     // Working copies, so edits never touch the seed used for diffing (cheaper than structuredClone for 12k records).
     contacts: contactsFrom(

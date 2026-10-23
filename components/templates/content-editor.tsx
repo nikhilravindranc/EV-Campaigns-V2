@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
 import {
   ArrowLeftIcon,
+  BookmarkSimpleIcon,
   BracketsCurlyIcon,
   ColumnsIcon,
   DesktopIcon,
@@ -16,7 +17,10 @@ import {
   NotePencilIcon,
   PaintBrushIcon,
   ShareNetworkIcon,
+  ShoppingBagIcon,
+  SparkleIcon,
   SquareIcon,
+  TrashIcon,
   TextAaIcon,
   TextHIcon,
   WarningIcon,
@@ -33,8 +37,9 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useStoredState, writeStored } from "@/hooks/use-stored-state";
 import { ApiError } from "@/lib/api/errors";
 import { MAX_CONTENT_BYTES } from "@/lib/api/templates";
+import { MAX_SECTIONS, NO_SECTIONS, SECTIONS_KEY, type SavedSection } from "@/lib/saved-sections";
 import { CONTENT_SESSION_KEY, galleryHref, NONE, TEMPLATES_ROUTE, type ContentSession } from "@/lib/content-session";
-import { BLOCK_LABEL, createBlock, reassignIds } from "@/lib/email-blocks";
+import { BLOCK_LABEL, createBlock, newBlockId, reassignIds } from "@/lib/email-blocks";
 import { checkHtml, MERGE_TAGS, mergeTagToken, renderEmailDocument } from "@/lib/email-render";
 import { TEMPLATE_CATEGORIES } from "@/lib/mock-data/templates";
 import { campaignHref } from "@/lib/routes";
@@ -54,6 +59,8 @@ const ELEMENTS: { type: BlockType; icon: Icon }[] = [
   { type: "spacer", icon: ArrowsVerticalIcon },
   { type: "columns", icon: ColumnsIcon },
   { type: "social", icon: ShareNetworkIcon },
+  { type: "product", icon: ShoppingBagIcon },
+  { type: "dynamic", icon: SparkleIcon },
   { type: "footer", icon: FootprintsIcon },
 ];
 
@@ -248,17 +255,33 @@ function Designer({ content, onChange, selectedId, onSelect, device }: { content
   const selected = selectedId ? findBlock(blocks, selectedId) : null;
   const setBlocks = (next: EmailBlock[]) => onChange({ ...content, blocks: next });
 
-  const add = (type: BlockType) => {
-    const block = createBlock(type);
-    // Columns carry their own ids for the items inside.
-    const fresh = type === "columns" ? reassignIds([block])[0] : block;
+  const [sections, setSections] = useStoredState<SavedSection[]>(SECTIONS_KEY, NO_SECTIONS);
+  const [naming, setNaming] = useState(false);
+  const [sectionName, setSectionName] = useState("");
+
+  /** Puts new blocks below the selected one, or above the footer. */
+  const place = (fresh: EmailBlock[], onlyFooter = false) => {
     const at = selectedId ? blocks.findIndex((b) => b.id === selectedId || (b.type === "columns" && b.columns.flat().some((x) => x.id === selectedId))) : -1;
     const next = [...blocks];
     const footerAt = next.findIndex((b) => b.type === "footer");
-    const index = at >= 0 ? at + 1 : footerAt >= 0 && type !== "footer" ? footerAt : next.length;
-    next.splice(index, 0, fresh);
+    const index = at >= 0 ? at + 1 : footerAt >= 0 && !onlyFooter ? footerAt : next.length;
+    next.splice(index, 0, ...fresh);
     setBlocks(next);
-    onSelect(fresh.id);
+    onSelect(fresh[0].id);
+  };
+  const add = (type: BlockType) => {
+    const block = createBlock(type);
+    // Columns carry their own ids for the items inside.
+    place([type === "columns" ? reassignIds([block])[0] : block], type === "footer");
+  };
+  const saveSection = () => {
+    const block = selected && isTopLevel(blocks, selected.id) ? (selected as EmailBlock) : null;
+    const name = sectionName.trim();
+    if (!block || name.length < 2) return;
+    setSections([{ id: newBlockId().replace("b-", "sec-"), name, blocks: reassignIds([block]), savedAt: new Date().toISOString() }, ...sections].slice(0, MAX_SECTIONS));
+    setNaming(false);
+    setSectionName("");
+    toast.success("Section saved", { description: `${name} · find it under Saved sections` });
   };
 
   const move = (dir: -1 | 1) => {
@@ -295,6 +318,55 @@ function Designer({ content, onChange, selectedId, onSelect, device }: { content
           ))}
         </div>
         <p className="mt-3 text-[11.5px] leading-4 text-ink-muted">Elements are added below the selected block.</p>
+
+        <div className="mt-4 border-t border-line-soft pt-3">
+          <p className="mb-2 flex items-center gap-1.5 text-[12px] font-medium tracking-wide text-ink-muted uppercase">
+            <BookmarkSimpleIcon size={13} aria-hidden /> Saved sections
+          </p>
+          {sections.length === 0 ? (
+            <p className="text-[11.5px] leading-4 text-ink-muted">Select a block and choose Save as section to reuse it in any email.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {sections.map((sec) => (
+                <li key={sec.id} className="flex items-center gap-1 rounded-lg border border-line bg-white pr-1 pl-2.5">
+                  <button type="button" onClick={() => place(reassignIds(sec.blocks))} className="min-w-0 flex-1 truncate py-1.5 text-left text-[12px] font-medium text-ink hover:text-brand focus-visible:outline-2 focus-visible:outline-brand-action" title={`Add ${sec.name}`}>
+                    {sec.name}
+                  </button>
+                  <button type="button" onClick={() => setSections(sections.filter((x) => x.id !== sec.id))} aria-label={`Delete saved section ${sec.name}`} className="inline-flex size-6 shrink-0 items-center justify-center rounded text-ink-muted hover:bg-[var(--danger-bg)] hover:text-[#B42318]">
+                    <TrashIcon size={12} aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {selected && isTopLevel(blocks, selected.id) && selected.type !== "footer" && (
+            <div className="mt-2">
+              {naming ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveSection();
+                  }}
+                  className="grid gap-1.5"
+                >
+                  <input autoFocus aria-label="Section name" value={sectionName} onChange={(e) => setSectionName(e.target.value)} maxLength={40} placeholder="Section name" className={cn(fieldClass, "h-8 text-[12px]")} />
+                  <div className="flex gap-1.5">
+                    <button type="submit" disabled={sectionName.trim().length < 2} className="h-7 flex-1 rounded-md bg-brand text-[12px] font-semibold text-white disabled:opacity-50">
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setNaming(false)} className="h-7 rounded-md border border-line px-2 text-[12px] text-ink-body">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button type="button" onClick={() => setNaming(true)} className="inline-flex items-center gap-1.5 rounded text-[12px] font-medium text-brand hover:text-brand-press focus-visible:outline-2 focus-visible:outline-brand-action">
+                  <BookmarkSimpleIcon size={13} aria-hidden /> Save as section
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* Canvas */}

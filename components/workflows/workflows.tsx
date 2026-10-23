@@ -17,6 +17,7 @@ import {
   PencilSimpleIcon,
   PlayIcon,
   PlusIcon,
+  SignOutIcon,
   TrashIcon,
   TreeStructureIcon,
   UserGearIcon,
@@ -30,6 +31,8 @@ import { EmptyState, ErrorState } from "@/components/shared/state-panels";
 import { EditorCard, editorInputClass, InlineInput } from "@/components/campaigns/editor/fields";
 import { useLists } from "@/hooks/use-audience";
 import { useTemplates } from "@/hooks/use-templates";
+import { instantiate, templateById } from "@/lib/workflow-templates";
+import { WorkflowTemplatePicker } from "./workflow-template-picker";
 import { useCreateItem, useDeleteItems, useDuplicateItem, useItem, useItems, useUpdateItem } from "@/hooks/use-workspace";
 import { ApiError } from "@/lib/api/errors";
 import { demoNow } from "@/lib/api/store";
@@ -99,7 +102,8 @@ export function stepSummary(s: WorkflowStep, names: Map<string, string>) {
       return `Wait ${pluralize(s.delay ?? 1, s.unit === "hours" ? "hour" : "day")}`;
     case "condition": {
       const c = CONDITIONS.find((x) => x.value === s.condition)?.label ?? "Choose a condition";
-      return s.condition === "has-tag" || s.condition === "in-list" ? `${c}: ${names.get(s.conditionValue ?? "") ?? s.conditionValue ?? "…"}` : `${c} — otherwise exit`;
+      const base = s.condition === "has-tag" || s.condition === "in-list" ? `${c}: ${names.get(s.conditionValue ?? "") ?? s.conditionValue ?? "…"}` : c;
+      return `${base} — otherwise ${s.otherwise?.length ? pluralize(s.otherwise.length, "step") : "exit"}`;
     }
     case "update": {
       const a = ACTIONS.find((x) => x.value === s.action)?.label ?? "Choose an action";
@@ -171,6 +175,7 @@ export function WorkflowsView() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [trigger, setTrigger] = useState("");
+  const [picking, setPicking] = useState(false);
 
   const term = q.trim().toLowerCase();
   const rows = data?.filter((w) => (!term || w.name.toLowerCase().includes(term) || w.description.toLowerCase().includes(term)) && (!status || w.status === status) && (!trigger || w.trigger.type === trigger));
@@ -205,7 +210,7 @@ export function WorkflowsView() {
         actions={
           <>
             <SearchInput value={q} onChange={setQ} placeholder="Search workflows…" label="Search workflows" className="w-full sm:w-[240px]" />
-            <PrimaryButton icon={PlusIcon} onClick={() => router.push(`${WORKFLOWS_ROUTE}/new`)}>
+            <PrimaryButton icon={PlusIcon} onClick={() => setPicking(true)}>
               Create Workflow
             </PrimaryButton>
           </>
@@ -229,11 +234,19 @@ export function WorkflowsView() {
             defaultSort={{ key: "last", dir: "desc" }}
             noun="workflows"
             caption="Workflows"
-            empty={<EmptyState icon={TreeStructureIcon} title={term || status || trigger ? "No workflows match" : "No workflows yet"} hint={term || status || trigger ? "Try another search or filter." : "Start with a trigger, then add emails, waits and conditions."} action={!term && !status && !trigger && <PrimaryButton icon={PlusIcon} onClick={() => router.push(`${WORKFLOWS_ROUTE}/new`)}>Create Workflow</PrimaryButton>} />}
+            empty={<EmptyState icon={TreeStructureIcon} title={term || status || trigger ? "No workflows match" : "No workflows yet"} hint={term || status || trigger ? "Try another search or filter." : "Start with a trigger, then add emails, waits and conditions."} action={!term && !status && !trigger && <PrimaryButton icon={PlusIcon} onClick={() => setPicking(true)}>Create Workflow</PrimaryButton>} />}
           />
         )}
       </Card>
       {actions.element()}
+      <WorkflowTemplatePicker
+        open={picking}
+        onOpenChange={setPicking}
+        onPick={(t) => {
+          setPicking(false);
+          router.push(t ? `${WORKFLOWS_ROUTE}/new?template=${t.id}` : `${WORKFLOWS_ROUTE}/new`);
+        }}
+      />
     </PageShell>
   );
 }
@@ -243,12 +256,26 @@ export function WorkflowsView() {
 let seq = 0;
 const newStep = (type: StepType): WorkflowStep => ({ id: `step-${Date.now().toString(36)}-${++seq}`, type, ...(type === "wait" ? { delay: 1, unit: "days" as const } : type === "condition" ? { condition: "opened" as const } : type === "update" ? { action: "add-tag" as const, actionValue: "" } : {}) });
 
+/** Every step, including the ones on "otherwise" paths. */
+const flat = (steps: WorkflowStep[]): WorkflowStep[] => steps.flatMap((s) => [s, ...(s.otherwise ? flat(s.otherwise) : [])]);
+const mapSteps = (steps: WorkflowStep[], fn: (s: WorkflowStep) => WorkflowStep): WorkflowStep[] => steps.map((s) => {
+  const n = fn(s);
+  return n.otherwise ? { ...n, otherwise: mapSteps(n.otherwise, fn) } : n;
+});
+const removeStep = (steps: WorkflowStep[], id: string): WorkflowStep[] => steps.filter((s) => s.id !== id).map((s) => (s.otherwise ? { ...s, otherwise: removeStep(s.otherwise, id) } : s));
+const cloneSteps = (steps: WorkflowStep[]): WorkflowStep[] => steps.map((s) => ({ ...s, ...(s.otherwise ? { otherwise: cloneSteps(s.otherwise) } : {}) }));
+/** Steps allowed on an "otherwise" path: contacts leave when it ends, so no End or nested conditions. */
+const BRANCH_TYPES: StepType[] = ["email", "wait", "update"];
+
+/** Share of contacts who match each condition, for the demo's per-step counts. */
+const MATCH_RATE: Record<string, number> = { opened: 0.52, clicked: 0.21, "has-tag": 0.6, "in-list": 0.7 };
+
 type Draft = Pick<Workflow, "name" | "description" | "trigger" | "steps">;
 
-export function WorkflowRoute({ id }: { id: string }) {
+export function WorkflowRoute({ id, template }: { id: string; template?: string }) {
   const isNew = id === "new";
   const { data, isError } = useItem("workflows", id, !isNew);
-  if (isNew) return <WorkflowEditor key="new" workflow={null} />;
+  if (isNew) return <WorkflowEditor key={`new-${template ?? ""}`} workflow={null} template={template} />;
   if (isError)
     return (
       <PageShell>
@@ -265,8 +292,9 @@ function validateDraft(d: Draft): string[] {
   const out: string[] = [];
   if (d.name.trim().length < 2) out.push("Enter a workflow name");
   if (d.trigger.type !== "manual" && !d.trigger.value?.trim()) out.push("Choose what starts the workflow");
-  if (!d.steps.some((s) => s.type === "email")) out.push("Add at least one Send Email step");
-  d.steps.forEach((s, i) => {
+  const all = flat(d.steps);
+  if (!all.some((s) => s.type === "email")) out.push("Add at least one Send Email step");
+  all.forEach((s, i) => {
     if (s.type === "email" && !s.subject?.trim()) out.push(`Step ${i + 1}: add an email subject`);
     if (s.type === "wait" && (!s.delay || s.delay < 1)) out.push(`Step ${i + 1}: wait at least 1 ${s.unit === "hours" ? "hour" : "day"}`);
     if (s.type === "condition" && (s.condition === "has-tag" || s.condition === "in-list") && !s.conditionValue) out.push(`Step ${i + 1}: complete the condition`);
@@ -275,14 +303,19 @@ function validateDraft(d: Draft): string[] {
   return out;
 }
 
-function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
+function WorkflowEditor({ workflow: w, template }: { workflow: Workflow | null; template?: string }) {
   const router = useRouter();
   const names = useNames();
   const create = useCreateItem("workflows");
   const update = useUpdateItem("workflows");
   const actions = useWorkflowActions();
   const [tab, setTab] = useState<"builder" | "details">("builder");
-  const [d, setD] = useState<Draft>(() => (w ? { name: w.name, description: w.description, trigger: { ...w.trigger }, steps: w.steps.map((s) => ({ ...s })) } : { name: "", description: "", trigger: { type: "list-join", value: "" }, steps: [newStep("email"), newStep("end")] }));
+  const [d, setD] = useState<Draft>(() => {
+    if (w) return { name: w.name, description: w.description, trigger: { ...w.trigger }, steps: cloneSteps(w.steps) };
+    const t = templateById(template);
+    if (t) return { name: t.name, description: t.description, trigger: { ...t.trigger }, steps: instantiate(t.steps) };
+    return { name: "", description: "", trigger: { type: "list-join", value: "" }, steps: [newStep("email"), newStep("end")] };
+  });
   const [selected, setSelected] = useState<string>("trigger");
   const [problems, setProblems] = useState<string[]>([]);
   const status = w?.status ?? "draft";
@@ -291,7 +324,34 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
     setD(next);
     if (problems.length) setProblems(validateDraft(next));
   };
-  const setStep = (id: string, patch: Partial<WorkflowStep>) => set({ ...d, steps: d.steps.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const setStep = (id: string, patch: Partial<WorkflowStep>) => set({ ...d, steps: mapSteps(d.steps, (s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const insertInBranch = (conditionId: string, index: number, type: StepType) => {
+    const s = newStep(type);
+    set({ ...d, steps: mapSteps(d.steps, (x) => (x.id === conditionId ? { ...x, otherwise: [...(x.otherwise ?? []).slice(0, index), s, ...(x.otherwise ?? []).slice(index)] } : x)) });
+    setSelected(s.id);
+  };
+  const deleteStep = (id: string) => {
+    set({ ...d, steps: removeStep(d.steps, id) });
+    setSelected("trigger");
+  };
+  // Demo counts: how many contacts reach each step, with conditions splitting them.
+  const counts = new Map<string, number>();
+  if (w && w.processed > 0) {
+    let n = w.processed;
+    for (const s of d.steps) {
+      counts.set(s.id, Math.round(n));
+      if (s.type === "email") n *= 0.98;
+      if (s.type === "condition") {
+        const rate = MATCH_RATE[s.condition ?? "opened"] ?? 0.5;
+        let m = n * (1 - rate);
+        for (const o of s.otherwise ?? []) {
+          counts.set(o.id, Math.round(m));
+          if (o.type === "email") m *= 0.98;
+        }
+        n *= rate;
+      }
+    }
+  }
   const insertAt = (index: number, type: StepType) => {
     const s = newStep(type);
     const steps = [...d.steps];
@@ -325,8 +385,8 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
   };
 
   const saving = create.isPending || update.isPending;
-  const sel = d.steps.find((s) => s.id === selected);
-  const selIndex = d.steps.findIndex((s) => s.id === selected);
+  const sel = flat(d.steps).find((s) => s.id === selected);
+  const hasBranch = d.steps.some((s) => s.type === "condition");
 
   return (
     <EditorPage>
@@ -366,7 +426,7 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
       ) : (
         <div id="wf-panel" role="tabpanel" className="mx-auto grid w-full max-w-[1600px] flex-1 items-start gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           {/* Canvas */}
-          <section aria-label="Workflow steps" className="min-w-0 rounded-2xl border border-line bg-[radial-gradient(circle,#E7E2F1_1px,transparent_1px)] bg-[length:18px_18px] p-4 sm:p-6">
+          <section aria-label="Workflow steps" className="@container min-w-0 rounded-2xl border border-line bg-[radial-gradient(circle,#E7E2F1_1px,transparent_1px)] bg-[length:18px_18px] p-4 sm:p-6">
             {problems.length > 0 && (
               <ul role="alert" className="mb-4 space-y-1 rounded-xl border border-[#FECDCA] bg-[var(--danger-bg)] px-4 py-3 text-[12.5px] text-[#B42318]">
                 {problems.map((p) => (
@@ -374,41 +434,89 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
                 ))}
               </ul>
             )}
-            <div className="mx-auto flex w-full max-w-[460px] flex-col items-center">
-              <NodeCard selected={selected === "trigger"} onSelect={() => setSelected("trigger")} icon={LightningIcon} fg="var(--campaign-action)" bg="var(--campaign-tint)" title="Trigger" summary={triggerLabel(d, names)} />
+            <div className={cn("mx-auto w-full", hasBranch ? "max-w-[700px]" : "max-w-[360px]")}>
+              <div className={cn(hasBranch ? "w-full @[620px]:max-w-[340px]" : "w-full")}>
+                <NodeCard selected={selected === "trigger"} onSelect={() => setSelected("trigger")} icon={LightningIcon} fg="var(--campaign-action)" bg="var(--campaign-tint)" title="Trigger" summary={triggerLabel(d, names)} stat={w && w.processed > 0 ? `${formatNumber(w.processed)} entered` : undefined} />
+              </div>
               {d.steps.map((s, i) => {
                 const m = STEP_META[s.type];
+                const stat = counts.has(s.id) ? formatNumber(counts.get(s.id)!) : undefined;
                 return (
                   <Fragment key={s.id}>
-                    <Connector onAdd={(type) => insertAt(i, type)} canAddEnd={false} />
-                    <NodeCard
-                      selected={selected === s.id}
-                      onSelect={() => setSelected(s.id)}
-                      icon={m.icon}
-                      fg={m.fg}
-                      bg={m.bg}
-                      title={`${i + 1}. ${m.label}`}
-                      summary={stepSummary(s, names)}
-                      tools={
-                        s.type !== "end" && (
-                          <>
-                            <ToolBtn label="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
-                              <ArrowUpIcon size={13} />
-                            </ToolBtn>
-                            <ToolBtn label="Move down" onClick={() => move(i, 1)} disabled={i >= d.steps.length - 1 || d.steps[i + 1]?.type === "end"}>
-                              <ArrowDownIcon size={13} />
-                            </ToolBtn>
-                            <ToolBtn label="Delete step" onClick={() => (set({ ...d, steps: d.steps.filter((x) => x.id !== s.id) }), setSelected("trigger"))} danger>
-                              <TrashIcon size={13} />
-                            </ToolBtn>
-                          </>
-                        )
-                      }
-                    />
+                    <div className={cn(hasBranch ? "w-full @[620px]:max-w-[340px]" : "w-full")}>
+                      <Connector onAdd={(type) => insertAt(i, type)} canAddEnd={false} />
+                    </div>
+                    <div className={cn("grid grid-cols-[minmax(0,1fr)] items-start gap-x-3", s.type === "condition" ? "@[620px]:grid-cols-[340px_minmax(0,1fr)]" : "")}>
+                      <NodeCard
+                        selected={selected === s.id}
+                        onSelect={() => setSelected(s.id)}
+                        icon={m.icon}
+                        fg={m.fg}
+                        bg={m.bg}
+                        title={`${i + 1}. ${m.label}`}
+                        summary={stepSummary(s, names)}
+                        stat={stat}
+                        tools={
+                          s.type !== "end" && (
+                            <>
+                              <ToolBtn label="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
+                                <ArrowUpIcon size={13} />
+                              </ToolBtn>
+                              <ToolBtn label="Move down" onClick={() => move(i, 1)} disabled={i >= d.steps.length - 1 || d.steps[i + 1]?.type === "end"}>
+                                <ArrowDownIcon size={13} />
+                              </ToolBtn>
+                              <ToolBtn label="Delete step" onClick={() => deleteStep(s.id)} danger>
+                                <TrashIcon size={13} />
+                              </ToolBtn>
+                            </>
+                          )
+                        }
+                      />
+                      {s.type === "condition" && (
+                        <div className="mt-2 ml-6 flex min-w-0 items-start gap-2 @[620px]:mt-0 @[620px]:ml-0 @[620px]:pt-4">
+                          <span className="mt-4 hidden h-px w-5 shrink-0 bg-campaign-soft @[620px]:block" aria-hidden />
+                          <div className="min-w-0 flex-1 rounded-xl border border-dashed border-[#F0D9A8] bg-[var(--warning-bg)]/40 p-2.5" role="group" aria-label="Otherwise path">
+                            <p className="px-1 pb-1.5 text-[11.5px] font-semibold tracking-wide text-[var(--warning)] uppercase">Otherwise</p>
+                            {(s.otherwise ?? []).map((o, oi) => {
+                              const om = STEP_META[o.type];
+                              return (
+                                <Fragment key={o.id}>
+                                  <Connector small onAdd={(type) => insertInBranch(s.id, oi, type)} canAddEnd={false} allow={BRANCH_TYPES} />
+                                  <NodeCard
+                                    selected={selected === o.id}
+                                    onSelect={() => setSelected(o.id)}
+                                    icon={om.icon}
+                                    fg={om.fg}
+                                    bg={om.bg}
+                                    title={om.label}
+                                    summary={stepSummary(o, names)}
+                                    stat={counts.has(o.id) ? formatNumber(counts.get(o.id)!) : undefined}
+                                    compact
+                                    tools={
+                                      <ToolBtn label="Delete step" onClick={() => deleteStep(o.id)} danger>
+                                        <TrashIcon size={13} />
+                                      </ToolBtn>
+                                    }
+                                  />
+                                </Fragment>
+                              );
+                            })}
+                            <Connector small onAdd={(type) => insertInBranch(s.id, (s.otherwise ?? []).length, type)} canAddEnd={false} allow={BRANCH_TYPES} />
+                            <p className="flex items-center gap-1.5 px-1 text-[12px] text-ink-muted">
+                              <SignOutIcon size={13} aria-hidden /> Then they leave the workflow
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </Fragment>
                 );
               })}
-              {!d.steps.some((s) => s.type === "end") && <Connector onAdd={(type) => insertAt(d.steps.length, type)} canAddEnd />}
+              {!d.steps.some((s) => s.type === "end") && (
+                <div className={cn(hasBranch ? "w-full @[620px]:max-w-[340px]" : "w-full")}>
+                  <Connector onAdd={(type) => insertAt(d.steps.length, type)} canAddEnd />
+                </div>
+              )}
             </div>
           </section>
 
@@ -419,7 +527,7 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
                 {selected === "trigger" ? (
                   <TriggerFields d={d} onChange={(trigger) => set({ ...d, trigger })} />
                 ) : sel ? (
-                  <StepFields step={sel} index={selIndex} onChange={(patch) => setStep(sel.id, patch)} />
+                  <StepFields step={sel} onChange={(patch) => setStep(sel.id, patch)} />
                 ) : (
                   <p className="text-[13px] text-ink-muted">Select a step in the workflow to edit it.</p>
                 )}
@@ -441,26 +549,31 @@ function WorkflowEditor({ workflow: w }: { workflow: Workflow | null }) {
   );
 }
 
-function NodeCard({ selected, onSelect, icon: IconCmp, fg, bg, title, summary, tools }: { selected: boolean; onSelect: () => void; icon: Icon; fg: string; bg: string; title: string; summary: string; tools?: ReactNode }) {
+function NodeCard({ selected, onSelect, icon: IconCmp, fg, bg, title, summary, tools, stat, compact }: { selected: boolean; onSelect: () => void; icon: Icon; fg: string; bg: string; title: string; summary: string; tools?: ReactNode; stat?: string; compact?: boolean }) {
   return (
-    <div className={cn("group flex w-full items-center gap-3 rounded-xl border bg-white px-3 py-3 shadow-card transition", selected ? "border-campaign-action ring-2 ring-campaign-soft" : "border-line hover:border-campaign-soft")}>
+    <div className={cn("group flex w-full items-center gap-3 rounded-xl border bg-white px-3 shadow-card transition", compact ? "py-2" : "py-3", selected ? "border-campaign-action ring-2 ring-campaign-soft" : "border-line hover:border-campaign-soft")}>
       <button type="button" onClick={onSelect} aria-pressed={selected} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-2 focus-visible:outline-brand-action">
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl" style={{ color: fg, backgroundColor: bg }} aria-hidden>
-          <IconCmp size={20} />
+        <span className={cn("inline-flex shrink-0 items-center justify-center rounded-xl", compact ? "size-8" : "size-10")} style={{ color: fg, backgroundColor: bg }} aria-hidden>
+          <IconCmp size={compact ? 16 : 20} />
         </span>
         <span className="min-w-0">
           <span className="block text-[13.5px] font-semibold text-campaign-depth">{title}</span>
           <span className="block truncate text-[12.5px] text-ink-muted">{summary}</span>
         </span>
       </button>
+      {stat && (
+        <span className="shrink-0 rounded-md bg-campaign-muted px-1.5 py-0.5 text-[11.5px] font-medium text-ink-body tabular-nums" title="Contacts who reached this step (demo numbers)">
+          {stat}
+        </span>
+      )}
       {tools && <span className="flex shrink-0 items-center opacity-70 group-hover:opacity-100">{tools}</span>}
     </div>
   );
 }
 
-function Connector({ onAdd, canAddEnd }: { onAdd: (t: StepType) => void; canAddEnd: boolean }) {
+function Connector({ onAdd, canAddEnd, allow, small }: { onAdd: (t: StepType) => void; canAddEnd: boolean; allow?: StepType[]; small?: boolean }) {
   return (
-    <div className="flex h-12 flex-col items-center justify-center" aria-hidden={false}>
+    <div className={cn("flex flex-col items-center justify-center", small ? "h-9" : "h-12")} aria-hidden={false}>
       <span className="h-3 w-px bg-campaign-soft" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger aria-label="Add a step here" className="inline-flex size-6 items-center justify-center rounded-full border border-campaign-soft bg-white text-campaign-action shadow-card transition hover:border-campaign-action hover:bg-campaign-surface focus-visible:outline-2 focus-visible:outline-brand-action data-[state=open]:border-campaign-action">
@@ -468,7 +581,7 @@ function Connector({ onAdd, canAddEnd }: { onAdd: (t: StepType) => void; canAddE
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="w-52">
           {(Object.keys(STEP_META) as StepType[])
-            .filter((t) => t !== "end" || canAddEnd)
+            .filter((t) => (allow ? allow.includes(t) : t !== "end" || canAddEnd))
             .map((t) => {
               const m = STEP_META[t];
               return (
@@ -562,10 +675,10 @@ function TriggerFields({ d, onChange }: { d: Draft; onChange: (t: Draft["trigger
   );
 }
 
-function StepFields({ step: s, index, onChange }: { step: WorkflowStep; index: number; onChange: (p: Partial<WorkflowStep>) => void }) {
+function StepFields({ step: s, onChange }: { step: WorkflowStep; onChange: (p: Partial<WorkflowStep>) => void }) {
   const { data: templates } = useTemplates({});
   const { data: lists } = useLists();
-  const id = `wf-step-${index}`;
+  const id = `wf-step-${s.id}`;
   switch (s.type) {
     case "email":
       return (
@@ -629,7 +742,7 @@ function StepFields({ step: s, index, onChange }: { step: WorkflowStep; index: n
               </select>
             </Labeled>
           )}
-          <p className="text-[12px] text-ink-muted">Contacts who don&apos;t match leave the workflow at this step.</p>
+          <p className="text-[12px] text-ink-muted">Contacts who match carry on down the main path. Add steps to the “Otherwise” path on the canvas to treat everyone else differently; when it ends they leave the workflow.</p>
         </>
       );
     case "update":

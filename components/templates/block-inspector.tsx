@@ -5,6 +5,7 @@ import { ArrowDownIcon, ArrowUpIcon, CopyIcon, TextAlignCenterIcon, TextAlignLef
 import { toast } from "sonner";
 import { fieldClass } from "@/components/shared/campaign-ui";
 import { Switch } from "@/components/shared/email-ui";
+import { useLists } from "@/hooks/use-audience";
 import { BLOCK_LABEL, FONT_OPTIONS } from "@/lib/email-blocks";
 import type { Align, ColumnItem, EmailBlock, EmailStyle, SocialNetwork } from "@/lib/types/templates";
 import { cn } from "@/lib/utils";
@@ -229,6 +230,18 @@ export function BlockInspector({ block, onChange, onMove, onDuplicate, onDelete,
           <AlignPick value={b.align} onChange={(align) => set({ align })} />
         </>
       )}
+      {b.type === "product" && (
+        <>
+          <ImageSource value={b.image} onChange={(image) => set({ image })} />
+          <Text label="Name" value={b.name} onChange={(name) => set({ name })} />
+          <Text label="Price" value={b.price} onChange={(price) => set({ price })} />
+          <Area label="Description" value={b.description} onChange={(description) => set({ description })} rows={2} />
+          <Text label="Button text" value={b.buttonLabel} onChange={(buttonLabel) => set({ buttonLabel })} />
+          <Text label="Button link" value={b.href} onChange={(href) => set({ href })} placeholder="https://…" />
+          <AlignPick value={b.align} onChange={(align) => set({ align })} />
+        </>
+      )}
+      {b.type === "dynamic" && <DynamicFields b={b} set={set} />}
       {b.type === "footer" && (
         <>
           <Area label="Text" value={b.text} onChange={(text) => set({ text })} rows={3} />
@@ -282,5 +295,39 @@ export function StyleInspector({ style, onChange }: { style: EmailStyle; onChang
       <Color label="Button text" value={style.buttonTextColor} fallback="#FFFFFF" onChange={(buttonTextColor) => onChange({ buttonTextColor })} />
       <Num label="Corner radius" suffix="px" value={style.radius} min={0} max={32} onChange={(radius) => onChange({ radius })} />
     </div>
+  );
+}
+
+/** Who sees a dynamic block, what it says, and what everyone else sees. */
+function DynamicFields({ b, set }: { b: Extract<EmailBlock, { type: "dynamic" }>; set: (p: Partial<Extract<EmailBlock, { type: "dynamic" }>>) => void }) {
+  const { data: lists } = useLists();
+  return (
+    <>
+      <p className="rounded-lg bg-[#FFFBEB] px-3 py-2 text-[12px] leading-4 text-[#92400E]">This text is only shown to contacts who match. Everyone else sees the fallback, or nothing.</p>
+      <Field label="Show to contacts who">
+        <select value={b.condition} onChange={(e) => set({ condition: e.target.value as "has-tag" | "in-list", value: "" })} className={small}>
+          <option value="has-tag">Have a tag</option>
+          <option value="in-list">Are on a list</option>
+        </select>
+      </Field>
+      {b.condition === "has-tag" ? (
+        <Text label="Tag" value={b.value} onChange={(value) => set({ value: value.toLowerCase() })} placeholder="e.g. vip" />
+      ) : (
+        <Field label="List">
+          <select value={b.value} onChange={(e) => set({ value: e.target.value })} className={small}>
+            <option value="">Choose a list…</option>
+            {(lists ?? []).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <Area label="Text for them" value={b.text} onChange={(text) => set({ text })} rows={3} />
+      <Area label="Text for everyone else (optional)" value={b.fallback} onChange={(fallback) => set({ fallback })} rows={2} />
+      <Num label="Text size" suffix="px" value={b.size} min={11} max={32} onChange={(size) => set({ size })} />
+      <AlignPick value={b.align} onChange={(align) => set({ align })} />
+    </>
   );
 }

@@ -395,7 +395,7 @@ export function UpcomingCard({ data, className }: { data: DashboardData | undefi
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] leading-5 font-medium text-ink">{c.name}</span>
-                    <span className="block truncate text-[12px] leading-4 text-ink-muted">
+                    <span className="block text-[12px] leading-4 text-ink-muted">
                       <span className="sr-only">{formatDate(c.scheduledAt!)}, </span>
                       {timed ? formatTime(c.scheduledAt!) : "Time not set"} <span aria-hidden>·</span> To {formatNumber(c.recipients)} {isSms(c) ? "numbers" : "contacts"}
                     </span>

@@ -21,7 +21,7 @@ export const MERGE_TAGS: MergeTag[] = [
   { key: "last_name", label: "Last Name", sample: "Morgan" },
   { key: "email", label: "Email", sample: "alex.morgan@example.com" },
   { key: "company", label: "Company", sample: "Northwind Traders" },
-  { key: "org_name", label: "Your organization", sample: "Evoq Solutions" },
+  { key: "org_name", label: "Your organization", sample: "EVOQ" },
 ];
 
 export const mergeTagToken = (key: string) => `{{${key}}}`;
@@ -147,6 +147,8 @@ interface Ctx {
   merge: Record<string, string> | null;
   /** Selected block for the editor canvas highlight. */
   selectedId?: string;
+  /** Editor canvas: show extra notes on blocks (such as who sees a dynamic block). */
+  editable?: boolean;
 }
 
 function wrap(b: { id: string; paddingY: number; paddingX: number; background?: string }, inner: string, ctx: Ctx, extra = ""): string {
@@ -209,6 +211,27 @@ function renderItem(b: ColumnItem | EmailBlock, ctx: Ctx): string {
         .join("");
       return wrap(b, `<div style="text-align:${align(b.align)};">${links}</div>`, ctx);
     }
+    case "product": {
+      const src = safeImageSrc(b.image);
+      const radius = num(s.radius, 0, 32, 8);
+      const img = src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(b.name)}" style="display:block;width:100%;height:auto;border:0;">` : "";
+      const bg = safeColor(s.buttonColor, DEFAULT_STYLE.buttonColor);
+      const fg = safeColor(s.buttonTextColor, DEFAULT_STYLE.buttonTextColor);
+      return wrap(
+        b,
+        `<div style="border:1px solid #EAE6F1;border-radius:${radius + 4}px;overflow:hidden;background:#FFFFFF;text-align:${align(b.align)};">${img}<div style="padding:16px 18px 18px;"><h3 style="margin:0;font-size:17px;line-height:1.3;color:${safeColor(s.textColor, DEFAULT_STYLE.textColor)};">${escapeHtml(text(b.name))}</h3><p style="margin:4px 0 0;font-size:16px;font-weight:700;color:${bg};">${escapeHtml(text(b.price))}</p><p style="margin:6px 0 14px;font-size:14px;line-height:1.5;color:#5D5970;">${escapeHtml(text(b.description))}</p><a href="${escapeHtml(safeHref(b.href))}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 22px;background:${bg};color:${fg};font-size:14px;font-weight:700;text-decoration:none;border-radius:${radius}px;">${escapeHtml(text(b.buttonLabel))}</a></div></div>`,
+        ctx,
+      );
+    }
+    case "dynamic": {
+      const size = num(b.size, 11, 32, 15);
+      const body = richText(b.text, ctx.merge, `margin:0 0 12px;font-size:${size}px;line-height:1.6;text-align:${align(b.align)};color:${safeColor(s.textColor, DEFAULT_STYLE.textColor)};`);
+      const who = b.condition === "has-tag" ? `contacts tagged “${escapeHtml(b.value || "…")}”` : "contacts on the chosen list";
+      // In the editor the condition is shown on the block; in a sent email only the text is.
+      const note = ctx.editable ? `<div style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#B45309;">Shown to ${who}</div>` : "";
+      const otherwise = ctx.editable && b.fallback ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #E4E0EC;"><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#777386;">Everyone else sees</div>${richText(b.fallback, ctx.merge, `margin:4px 0 0;font-size:${size}px;line-height:1.5;color:#5D5970;`)}</div>` : "";
+      return wrap(b, `${note}${body}${otherwise}`, ctx, ctx.editable ? "border-left:3px solid #F59E0B;background:#FFFBEB;" : "");
+    }
     case "footer": {
       const a = align(b.align);
       const unsub = b.showUnsubscribe ? `<p style="margin:8px 0 0;font-size:12px;"><a href="#" style="color:${safeColor(s.linkColor, DEFAULT_STYLE.linkColor)};">Unsubscribe</a> · <a href="#" style="color:${safeColor(s.linkColor, DEFAULT_STYLE.linkColor)};">Manage preferences</a></p>` : "";
@@ -261,7 +284,7 @@ export function renderEmailDocument(content: EmailContent, opts: RenderOptions =
     return documentFor(inner.replace(/<style\b[\s\S]*?<\/style\s*>/gi, ""), "#FFFFFF", opts, styles);
   }
   const s = { ...DEFAULT_STYLE, ...content.style };
-  const ctx: Ctx = { style: s, merge, selectedId: opts.selectedId };
+  const ctx: Ctx = { style: s, merge, selectedId: opts.selectedId, editable: opts.editable };
   const spacing = num(s.blockSpacing, 0, 48, 0);
   const blocks = content.blocks.map((b) => renderItem(b, ctx)).join(spacing ? `<div style="height:${spacing}px"></div>` : "");
   const width = num(s.contentWidth, 320, 800, 600);

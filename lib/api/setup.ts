@@ -25,7 +25,7 @@ export async function getSetupProgress(senderVerified: boolean): Promise<SetupPr
       audience: has((a) => (a.kind === "list" || a.kind === "segment") && /created/i.test(a.detail)),
       template: has((a) => a.kind === "template" && !/deleted/i.test(a.detail)),
       campaign: has((a) => (a.kind === "email" || a.kind === "sms" || a.kind === "whatsapp") && /created/i.test(a.detail)),
-      launch: has((a) => /^(re)?scheduled/i.test(a.detail)),
+      launch: has((a) => /^((re)?scheduled|sending)/i.test(a.detail)),
       form: has((a) => a.kind === "form" && /created|duplicated/i.test(a.detail)),
     },
     counts: {

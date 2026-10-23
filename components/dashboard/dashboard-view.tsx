@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CalendarBlankIcon, CaretDownIcon, ChatCircleDotsIcon, CursorClickIcon, EnvelopeSimpleIcon, EyeIcon, PaperPlaneTiltIcon, TargetIcon, UsersThreeIcon } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlankIcon, CaretDownIcon, ChatCircleDotsIcon, EnvelopeSimpleIcon } from "@phosphor-icons/react/dist/ssr";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, fieldClass, OutlineButton, PageShell } from "@/components/shared/campaign-ui";
-import { Change, KpiCard } from "@/components/shared/kpi-card";
+import { Change } from "@/components/shared/kpi-card";
 import { ErrorState } from "@/components/shared/state-panels";
 import { CreateCampaignDialog, useCreateDialog } from "@/components/campaigns/campaign-dialogs";
 import { useDashboard } from "@/hooks/use-campaigns";
@@ -13,10 +13,13 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useStoredState } from "@/hooks/use-stored-state";
 import { addDays, formatNumber, formatPercent, formatRange } from "@/lib/format";
 import { CURRENT_USER, DEMO_TODAY } from "@/lib/mock-data/campaigns";
-import { campaignHref, CAMPAIGNS_ROUTE } from "@/lib/routes";
+import { campaignHref } from "@/lib/routes";
 import type { Kpi } from "@/lib/types/campaigns";
 import { cn } from "@/lib/utils";
-import { ActivityCard, BestCampaignsCard, ChannelsCard, ContactGrowthCard, PerformanceCard, QuickActionsBar, UpcomingCard } from "./dashboard-panels";
+import { PerformanceCard, UpcomingCard } from "./dashboard-panels";
+import { FormsCard, RecentCampaignsCard, SummaryCard } from "./overview-panels";
+import { SetupCard } from "./setup-card";
+import { TemplatesStrip } from "./templates-strip";
 
 const RANGES = [7, 30, 90] as const;
 type RangeDays = (typeof RANGES)[number];
@@ -89,6 +92,8 @@ export function DashboardView() {
   const days: RangeDays = RANGES.includes(storedRange) ? storedRange : DEFAULT_RANGE;
   const { data, isError, refetch } = useDashboard(hydrated ? days : DEFAULT_RANGE);
   const loading = !data;
+  // The Upcoming card shows the next few only; the full list is one click away.
+  const upcoming = data && { ...data, upcoming: data.upcoming.slice(0, 3) };
   const k = data?.kpis;
   // Greeting follows the viewer's clock; the server renders the morning variant.
   const hello = hydrated ? greeting(new Date().getHours()) : "Good morning";
@@ -97,7 +102,7 @@ export function DashboardView() {
     <PageShell>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em] text-campaign-depth sm:text-[27px] sm:leading-9">
+          <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.015em] text-ink sm:text-[27px] sm:leading-9">
             {hello}, {CURRENT_USER.firstName}{" "}
             <span role="img" aria-label="waving hand">
               👋
@@ -111,36 +116,35 @@ export function DashboardView() {
         </div>
       </div>
 
+      <SetupCard onCreateCampaign={() => create.open("email")} />
+
       {isError ? (
         <Card className="mt-5">
           <ErrorState hint="The dashboard couldn't be loaded." action={<OutlineButton onClick={() => refetch()}>Try again</OutlineButton>} />
         </Card>
       ) : (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
-            <KpiCard icon={UsersThreeIcon} label="Total Contacts" tone="violet" loading={loading} value={k && formatNumber(k.contacts.value)} change={kpiChange(k?.contacts, days)} spark={k?.contacts.spark} />
-            <KpiCard icon={EnvelopeSimpleIcon} label="Emails Sent" tone="orange" loading={loading} value={k && formatNumber(k.emailsSent.value)} change={kpiChange(k?.emailsSent, days)} spark={k?.emailsSent.spark} />
-            <KpiCard icon={EyeIcon} label="Open Rate" tone="violet" loading={loading} value={k && formatPercent(k.openRate.value)} change={kpiChange(k?.openRate, days)} spark={k?.openRate.spark} />
-            <KpiCard icon={CursorClickIcon} label="Click-Through Rate" tone="blue" loading={loading} value={k && formatPercent(k.clickRate.value)} change={kpiChange(k?.clickRate, days)} spark={k?.clickRate.spark} />
-            <KpiCard icon={PaperPlaneTiltIcon} label="Total Campaigns" tone="pink" loading={loading} value={k && formatNumber(k.campaigns.value)} change={kpiChange(k?.campaigns, days)} spark={k?.campaigns.spark} href={CAMPAIGNS_ROUTE} />
-            <KpiCard icon={TargetIcon} label="Conversions" tone="green" loading={loading} value={k && formatNumber(k.conversions.value)} change={kpiChange(k?.conversions, days)} spark={k?.conversions.spark} />
+          <SummaryCard
+            className="mt-6"
+            loading={loading}
+            stats={[
+              { label: "Emails sent", value: k && formatNumber(k.emailsSent.value), change: kpiChange(k?.emailsSent, days) },
+              { label: "Open rate", value: k && formatPercent(k.openRate.value), change: kpiChange(k?.openRate, days) },
+              { label: "Click-through rate", value: k && formatPercent(k.clickRate.value), change: kpiChange(k?.clickRate, days) },
+              { label: "Conversions", value: k && formatNumber(k.conversions.value), change: kpiChange(k?.conversions, days) },
+            ]}
+          />
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <PerformanceCard data={data} />
+            <UpcomingCard data={upcoming} />
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.95fr)]">
-            <PerformanceCard data={data} className="lg:col-span-2 xl:col-span-1" />
-            <ChannelsCard data={data} />
-            <ActivityCard data={data} />
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <RecentCampaignsCard />
+            <FormsCard />
           </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <BestCampaignsCard data={data} />
-            <ContactGrowthCard data={data} />
-            <UpcomingCard data={data} className="lg:col-span-2 xl:col-span-1" />
-          </div>
-
-          <div className="mt-4">
-            <QuickActionsBar onCreate={create.open} />
-          </div>
+          <TemplatesStrip className="mt-4" />
         </>
       )}
 

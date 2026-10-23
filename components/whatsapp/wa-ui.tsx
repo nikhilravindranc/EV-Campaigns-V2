@@ -33,7 +33,7 @@ export const WA_CATEGORY_LABEL: Record<WaTemplateCategory, string> = { marketing
  * A WhatsApp-style chat on a phone, with merge tags filled with sample
  * values. The green accent stays inside the preview.
  */
-export function WaPhonePreview({ header, body, footer, buttons, sender = "Evoq Solutions" }: { header?: string; body: string; footer?: string; buttons: string[]; sender?: string }) {
+export function WaPhonePreview({ header, body, footer, buttons, sender = "EVOQ" }: { header?: string; body: string; footer?: string; buttons: string[]; sender?: string }) {
   const fill = (t?: string) => (t ? applyMergeTags(t) : "");
   return (
     <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[30px] border-[6px] border-campaign-depth bg-[#EFE7DD] shadow-pop" aria-label="Message preview" role="img">

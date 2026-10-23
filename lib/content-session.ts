@@ -8,7 +8,7 @@
  *   for the campaign editor to apply it to the draft.
  * - Content session: what the content editor is editing and where it returns.
  */
-import type { CampaignAttachment } from "@/lib/types/campaigns";
+import type { AbTest, CampaignAttachment } from "@/lib/types/campaigns";
 import type { EmailContent, TemplateCategory, TemplateOrigin } from "@/lib/types/templates";
 
 export const draftKey = (campaignId: string) => `evoq-campaigns:draft:${campaignId}`;
@@ -27,6 +27,7 @@ export interface CampaignDraft {
   replyTo: string;
   subject: string;
   previewText: string;
+  abTest: AbTest | null;
   message: string;
   trackReplies: boolean;
   trackOpens: boolean;

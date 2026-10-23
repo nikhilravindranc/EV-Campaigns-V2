@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { ChatCircleDotsIcon, EnvelopeSimpleIcon, GearSixIcon, PaperclipIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleDotsIcon, EnvelopeSimpleIcon, FlaskIcon, GearSixIcon, InfoIcon, PaperclipIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { Switch } from "@/components/shared/email-ui";
 import type { CampaignDraft } from "@/lib/content-session";
+import type { AbTest } from "@/lib/types/campaigns";
 import { smsSegments } from "@/lib/campaign-meta";
 import { CURRENT_USER, DEFAULT_SENDER } from "@/lib/mock-data/campaigns";
 import { SMS_MAX } from "@/lib/schemas/campaign";
@@ -16,7 +17,7 @@ import { editorInputClass, EditorCard, EditorRow, EmailPickerInput, InlineInput,
 type Set = <K extends keyof CampaignDraft>(key: K, value: CampaignDraft[K]) => void;
 
 /** Sender addresses offered in the From Email dropdown (any valid address can be typed). */
-const KNOWN_SENDERS = [DEFAULT_SENDER.email, CURRENT_USER.email, "news@evoqsolutions.com", "support@evoqsolutions.com"];
+const KNOWN_SENDERS = [DEFAULT_SENDER.email, CURRENT_USER.email, "news@evoq.one", "support@evoq.one"];
 const PERSONALIZE_HINT = "Type @ to add personalization and : to insert emojis";
 
 export function EmailDetailsCard({ draft, set, errors, disabled }: { draft: CampaignDraft; set: Set; errors: DraftErrors; disabled?: boolean }) {
@@ -40,11 +41,93 @@ export function EmailDetailsCard({ draft, set, errors, disabled }: { draft: Camp
         <EditorRow label="Subject" required htmlFor="f-subject" error={errors.subject}>
           <PersonalizedInput id="f-subject" value={draft.subject} onChange={(v) => set("subject", v)} invalid={!!errors.subject} placeholder={PERSONALIZE_HINT} maxLength={150} />
         </EditorRow>
+        <AbTestRow draft={draft} set={set} error={errors.subjectB} disabled={disabled} />
         <EditorRow label="Preheader" htmlFor="f-previewText" error={errors.previewText}>
           <PersonalizedInput id="f-previewText" value={draft.previewText} onChange={(v) => set("previewText", v)} invalid={!!errors.previewText} placeholder={PERSONALIZE_HINT} maxLength={150} />
         </EditorRow>
       </div>
     </EditorCard>
+  );
+}
+
+const DEFAULT_AB: AbTest = { subjectB: "", testPercent: 20, metric: "opens", hours: 4 };
+const TEST_SIZES = [10, 20, 30, 40, 50];
+const TEST_HOURS = [1, 2, 4, 12, 24];
+
+const selectClass = cn(editorInputClass, "h-10 pr-8");
+
+/** Subject-line A/B test: a link to start one, then Subject B and how the winner is chosen. */
+function AbTestRow({ draft, set, error, disabled }: { draft: CampaignDraft; set: Set; error?: string; disabled?: boolean }) {
+  const t = draft.abTest;
+  if (!t) {
+    return (
+      <div className="px-5 pb-1 sm:pl-[140px]">
+        <button type="button" disabled={disabled} onClick={() => set("abTest", { ...DEFAULT_AB })} className="inline-flex items-center gap-1.5 rounded text-[13px] font-medium text-brand hover:text-brand-press focus-visible:outline-2 focus-visible:outline-brand-action disabled:opacity-60">
+          <FlaskIcon size={15} aria-hidden /> Create A/B test
+        </button>
+        <span className="ml-2 text-[12px] text-ink-muted">Try two subject lines and send the better one to everyone else.</span>
+      </div>
+    );
+  }
+  const patch = (p: Partial<AbTest>) => set("abTest", { ...t, ...p });
+  const rest = 100 - t.testPercent;
+  return (
+    <div className="mx-5 my-2 rounded-xl border border-campaign-soft bg-campaign-surface/60 p-4 sm:ml-[140px]" role="group" aria-label="A/B test">
+      <div className="flex items-center gap-2">
+        <FlaskIcon size={16} aria-hidden className="text-campaign-action" />
+        <p className="text-[13.5px] font-semibold text-ink">A/B test</p>
+        <button type="button" onClick={() => set("abTest", null)} disabled={disabled} className="ml-auto rounded text-[12.5px] font-medium text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-action">
+          Remove test
+        </button>
+      </div>
+      <p className="mt-1 text-[12.5px] text-ink-muted">Your subject above is version A.</p>
+      <div className="mt-3 grid gap-1.5">
+        <label htmlFor="f-subjectB" className="text-[13px] font-medium text-ink">
+          Subject B<span className="ml-0.5 text-[#E5484D]" aria-hidden>*</span>
+        </label>
+        <PersonalizedInput id="f-subjectB" value={t.subjectB} onChange={(v) => patch({ subjectB: v })} invalid={!!error} placeholder={PERSONALIZE_HINT} maxLength={150} />
+        {error && (
+          <p id="f-subjectB-error" role="alert" className="text-[12px] leading-4 font-medium text-[#D92D20]">
+            {error}
+          </p>
+        )}
+      </div>
+      <div className="mt-3 grid gap-2.5">
+        <label className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] font-medium text-ink">
+          Test group
+          <select value={t.testPercent} onChange={(e) => patch({ testPercent: Number(e.target.value) })} className={cn(selectClass, "w-[200px]")} disabled={disabled}>
+            {TEST_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n}% of recipients
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] font-medium text-ink">
+          Winner has more
+          <select value={t.metric} onChange={(e) => patch({ metric: e.target.value as AbTest["metric"] })} className={cn(selectClass, "w-[200px]")} disabled={disabled}>
+            <option value="opens">Opens</option>
+            <option value="clicks">Clicks</option>
+          </select>
+        </label>
+        <label className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[13px] font-medium text-ink">
+          Test runs for
+          <select value={t.hours} onChange={(e) => patch({ hours: Number(e.target.value) })} className={cn(selectClass, "w-[200px]")} disabled={disabled}>
+            {TEST_HOURS.map((n) => (
+              <option key={n} value={n}>
+                {n} {n === 1 ? "hour" : "hours"}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-3 flex items-start gap-1.5 text-[12.5px] leading-[18px] text-ink-body">
+        <InfoIcon size={14} aria-hidden className="mt-0.5 shrink-0 text-ink-muted" />
+        <span>
+          Version A and version B each go to {t.testPercent / 2}% of your recipients. After {t.hours} {t.hours === 1 ? "hour" : "hours"}, the version with more {t.metric} is sent to the other {rest}%.
+        </span>
+      </p>
+    </div>
   );
 }
 

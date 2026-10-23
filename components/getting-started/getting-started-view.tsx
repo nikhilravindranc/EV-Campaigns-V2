@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
 import type { Icon } from "@phosphor-icons/react";
 import {
   AddressBookIcon,
@@ -25,39 +24,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateDialog } from "@/components/campaigns/campaign-dialogs";
 import { Card, CardHeader, PageShell } from "@/components/shared/campaign-ui";
 import { useCampaigns, useDashboard } from "@/hooks/use-campaigns";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { useStoredState } from "@/hooks/use-stored-state";
-import { getSetupProgress, type SetupStepKey } from "@/lib/api/setup";
+import { STEPS, useSetup, VERIFIED_KEY, type Step } from "./setup-steps";
 import { addDays, formatNumber, formatRelative, pluralize } from "@/lib/format";
 import { CURRENT_USER, DEFAULT_SENDER, DEMO_TODAY } from "@/lib/mock-data/campaigns";
 import { campaignHref } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-const VERIFIED_KEY = "evoq-campaigns:sender-verified";
-
-interface Step {
-  key: SetupStepKey;
-  title: string;
-  text: string;
-  action: string;
-  href?: string;
-}
-
-const STEPS: Step[] = [
-  { key: "sender", title: "Verify your sender address", text: `Confirm ${DEFAULT_SENDER.email} so inboxes trust your emails.`, action: "Verify sender" },
-  { key: "contacts", title: "Add your contacts", text: "Import a CSV or add people one by one.", action: "Import contacts", href: "/contacts?import=1" },
-  { key: "audience", title: "Organise your audience", text: "Group contacts into a list or a segment that updates itself.", action: "Create a segment", href: "/segments/new" },
-  { key: "template", title: "Design an email template", text: "Start from the gallery, a layout or your own HTML.", action: "Create a template", href: "/templates" },
-  { key: "campaign", title: "Create your first campaign", text: "Email, SMS or WhatsApp — pick an audience and write the message.", action: "Create campaign" },
-  { key: "launch", title: "Schedule a campaign", text: "Review it, then pick a send time. Nothing is really sent in this demo.", action: "Open campaigns", href: "/campaigns?status=draft" },
-  { key: "form", title: "Grow your list with a form", text: "Publish a signup form that adds new contacts to a list.", action: "Create a form", href: "/forms/new" },
-];
-
-function useSetup(verified: boolean) {
-  const hydrated = useHydrated();
-  const q = useQuery({ queryKey: ["campaigns", "setup", verified], queryFn: () => getSetupProgress(verified) });
-  return hydrated ? q.data : undefined;
-}
 
 export function GettingStartedView() {
   const [verified, setVerified] = useStoredState(VERIFIED_KEY, false);

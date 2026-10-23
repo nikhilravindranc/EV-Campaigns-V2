@@ -274,7 +274,7 @@ function BuildCard({ title, text, icon, fg, bg, onClick }: { title: string; text
 }
 
 /** Large preview with desktop and phone widths. */
-export function PreviewDialog({ open, onOpenChange, content, preheader, title }: { open: boolean; onOpenChange: (o: boolean) => void; content: EmailContent; preheader?: string; title: string }) {
+export function PreviewDialog({ open, onOpenChange, content, preheader, title, footer }: { open: boolean; onOpenChange: (o: boolean) => void; content: EmailContent; preheader?: string; title: string; footer?: ReactNode }) {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -304,6 +304,7 @@ export function PreviewDialog({ open, onOpenChange, content, preheader, title }:
             <EmailFrame content={content} preheader={preheader} title={`Preview of ${title}`} />
           </div>
         </div>
+        {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line-soft bg-white px-5 py-3">{footer}</div>}
       </DialogContent>
     </Dialog>
   );

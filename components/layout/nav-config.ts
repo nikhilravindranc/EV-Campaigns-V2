@@ -8,11 +8,17 @@ import {
   EnvelopeSimpleIcon,
   FolderSimpleIcon,
   HouseSimpleIcon,
+  ChatTeardropTextIcon,
+  ClipboardTextIcon,
+  LifebuoyIcon,
+  PlugsConnectedIcon,
   ListBulletsIcon,
   NotePencilIcon,
   PaperPlaneTiltIcon,
   RocketLaunchIcon,
+  SlidersHorizontalIcon,
   StackIcon,
+  TagIcon,
   TreeStructureIcon,
   WhatsappLogoIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -51,6 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Email", icon: EnvelopeSimpleIcon, href: "/campaigns/email", type: "email" },
       { label: "WhatsApp", icon: WhatsappLogoIcon, href: "/campaigns/whatsapp" },
       { label: "SMS", icon: ChatCircleIcon, href: "/campaigns/sms", type: "sms" },
+      { label: "Inbox", icon: ChatTeardropTextIcon, href: "/inbox" },
     ],
   },
   {
@@ -59,12 +66,18 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Contacts", icon: AddressBookIcon, href: "/contacts" },
       { label: "Lists", icon: ListBulletsIcon, href: "/lists" },
       { label: "Segments", icon: StackIcon, href: "/segments" },
+      { label: "Tags", icon: TagIcon, href: "/tags" },
       { label: "Forms", icon: BrowserIcon, href: "/forms" },
+      { label: "Surveys", icon: ClipboardTextIcon, href: "/surveys" },
+      { label: "Preferences", icon: SlidersHorizontalIcon, href: "/preferences" },
     ],
   },
   {
     label: "Automation",
-    items: [{ label: "Workflows", icon: TreeStructureIcon, href: "/workflows" }],
+    items: [
+      { label: "Workflows", icon: TreeStructureIcon, href: "/workflows" },
+      { label: "Integrations", icon: PlugsConnectedIcon, href: "/integrations" },
+    ],
   },
   {
     label: "Library",
@@ -73,6 +86,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Email Templates", icon: NotePencilIcon, href: "/templates" },
       { label: "WhatsApp Templates", icon: ChatsCircleIcon, href: "/templates/whatsapp" },
     ],
+  },
+  {
+    label: "Support",
+    items: [{ label: "Help Center", icon: LifebuoyIcon, href: "/help" }],
   },
 ];
 

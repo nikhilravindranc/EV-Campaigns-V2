@@ -3,7 +3,12 @@
  * block type, the starting layouts and placeholder artwork. Used by the
  * template seeds, the template editor and campaign content alike.
  */
-import type { Align, BlockType, ButtonBlock, ColumnItem, ColumnsBlock, DividerBlock, EmailBlock, EmailContent, EmailLayout, EmailStyle, FooterBlock, HeadingBlock, ImageBlock, LayoutKey, SocialBlock, SpacerBlock, TextBlock } from "@/lib/types/templates";
+import { photo, type PhotoKey } from "@/lib/photos";
+import type { Align, BlockType, ButtonBlock, ColumnItem, ColumnsBlock, DividerBlock, EmailBlock, EmailContent, EmailLayout, EmailStyle, FooterBlock, HeadingBlock, ImageBlock, LayoutKey, SocialBlock, SpacerBlock, TextBlock, ProductBlock, DynamicBlock } from "@/lib/types/templates";
+
+const PRODUCT_PHOTOS: PhotoKey[] = ["watch", "shoes", "headphones", "skincare"];
+const PRODUCT_NAMES = ["Smart watch", "Running shoes", "Wireless headphones", "Daily moisturiser"];
+const HIGHLIGHT_PHOTOS: PhotoKey[] = ["team", "desk", "analytics"];
 
 export const FONT_OPTIONS = [
   { value: "Arial, Helvetica, sans-serif", label: "Arial" },
@@ -37,6 +42,8 @@ export const BLOCK_LABEL: Record<BlockType, string> = {
   spacer: "Spacer",
   columns: "Columns",
   social: "Social links",
+  product: "Product",
+  dynamic: "Dynamic content",
   footer: "Footer",
 };
 
@@ -92,11 +99,34 @@ export const social = (id: string, align: Align = "center"): SocialBlock => ({
     { network: "x", url: "https://x.com/evoq" },
   ],
 });
+export const product = (id: string, o: Partial<ProductBlock> = {}): ProductBlock => ({
+  ...box(id, 12, 32),
+  type: "product",
+  image: photo("watch", 560, 420),
+  name: "Product name",
+  price: "$49.00",
+  description: "One line that makes someone want it.",
+  buttonLabel: "Shop now",
+  href: "https://evoq.one/shop",
+  align: "left",
+  ...o,
+});
+export const dynamicBlock = (id: string, o: Partial<DynamicBlock> = {}): DynamicBlock => ({
+  ...box(id, 12, 32),
+  type: "dynamic",
+  condition: "has-tag",
+  value: "vip",
+  text: "Thanks for being a VIP, {{first_name}}. Here is your early access.",
+  fallback: "",
+  size: 15,
+  align: "left",
+  ...o,
+});
 export const footer = (id: string, o: Partial<FooterBlock> = {}): FooterBlock => ({
   ...box(id, 24),
   type: "footer",
   text: "You're receiving this email because you subscribed to updates from {{org_name}}.",
-  address: "Evoq Solutions · 500 Market Street, Suite 300 · San Francisco, CA 94105",
+  address: "EVOQ · 500 Market Street, Suite 300 · San Francisco, CA 94105",
   showUnsubscribe: true,
   align: "center",
   background: "#F8F8FC",
@@ -125,6 +155,10 @@ export function createBlock(type: BlockType, id: string = newBlockId()): EmailBl
       ]);
     case "social":
       return social(id);
+    case "product":
+      return product(id);
+    case "dynamic":
+      return dynamicBlock(id);
     case "footer":
       return footer(id);
   }
@@ -132,7 +166,7 @@ export function createBlock(type: BlockType, id: string = newBlockId()): EmailBl
 
 /** Three-column variant of the columns block. */
 export function createThreeColumns(id: string = newBlockId()): ColumnsBlock {
-  const col = (k: string, n: number) => [image(`${id}-${k}1`, placeholderImage(`Item ${n}`, "#3D1E5C", "#7C3AED", 300, 220), `Item ${n}`, { paddingX: 0 }), heading(`${id}-${k}2`, `Item ${n}`, { size: 16, paddingX: 0, paddingY: 6 }), paragraph(`${id}-${k}3`, "A line about this item.", { size: 13, paddingX: 0, paddingY: 4 })];
+  const col = (k: string, n: number) => [image(`${id}-${k}1`, photo(HIGHLIGHT_PHOTOS[(n - 1) % HIGHLIGHT_PHOTOS.length], 300, 220), `Item ${n}`, { paddingX: 0 }), heading(`${id}-${k}2`, `Item ${n}`, { size: 16, paddingX: 0, paddingY: 6 }), paragraph(`${id}-${k}3`, "A line about this item.", { size: 13, paddingX: 0, paddingY: 4 })];
   return columns(id, [col("a", 1), col("b", 2), col("c", 3)], { gap: 12 });
 }
 
@@ -161,15 +195,15 @@ const logoBar = (id: IdFn) => heading(id(), "{{org_name}}", { size: 18, align: "
 export function buildLayout(key: LayoutKey, id: IdFn = newBlockId): EmailContent {
   const blocks: EmailBlock[] = [logoBar(id)];
   const product = (n: number, price: string): ColumnItem[] => [
-    image(id(), placeholderImage(`Product ${n}`, "#3D1E5C", "#7C3AED", 300, 240), `Product ${n}`, { paddingX: 0 }),
-    heading(id(), `Product name ${n}`, { size: 16, paddingX: 0, paddingY: 6 }),
+    image(id(), photo(PRODUCT_PHOTOS[(n - 1) % PRODUCT_PHOTOS.length], 300, 240), `Product ${n}`, { paddingX: 0 }),
+    heading(id(), PRODUCT_NAMES[(n - 1) % PRODUCT_NAMES.length], { size: 16, paddingX: 0, paddingY: 6 }),
     paragraph(id(), price, { size: 14, paddingX: 0, paddingY: 2, color: "#5B21B6" }),
     button(id(), "Shop now", "https://evoq.one/shop", { paddingX: 0, paddingY: 8, fullWidth: true }),
   ];
   switch (key) {
     case "single-column":
       blocks.push(
-        image(id(), placeholderImage("Hero image"), "Hero image", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("laptop", 600, 260), "Hero image", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Your headline goes here"),
         paragraph(id(), "Hi {{first_name}},\n\nIntroduce your message in a sentence or two. Keep it short and lead to one clear action."),
         button(id(), "Call to action", "https://evoq.one"),
@@ -179,8 +213,8 @@ export function buildLayout(key: LayoutKey, id: IdFn = newBlockId): EmailContent
       blocks.push(
         heading(id(), "Two things worth knowing", { align: "center" }),
         columns(id(), [
-          [image(id(), placeholderImage("Left", "#5B21B6", "#8B5CF6", 300, 200), "Left image", { paddingX: 0 }), heading(id(), "First topic", { size: 18, paddingX: 0 }), paragraph(id(), "A short description of the first topic.", { paddingX: 0 })],
-          [image(id(), placeholderImage("Right", "#3D1E5C", "#7C3AED", 300, 200), "Right image", { paddingX: 0 }), heading(id(), "Second topic", { size: 18, paddingX: 0 }), paragraph(id(), "A short description of the second topic.", { paddingX: 0 })],
+          [image(id(), photo("teamwork", 300, 200), "Left image", { paddingX: 0 }), heading(id(), "First topic", { size: 18, paddingX: 0 }), paragraph(id(), "A short description of the first topic.", { paddingX: 0 })],
+          [image(id(), photo("meeting", 300, 200), "Right image", { paddingX: 0 }), heading(id(), "Second topic", { size: 18, paddingX: 0 }), paragraph(id(), "A short description of the second topic.", { paddingX: 0 })],
         ]),
       );
       break;
@@ -189,7 +223,7 @@ export function buildLayout(key: LayoutKey, id: IdFn = newBlockId): EmailContent
       break;
     case "image-text":
     case "text-image": {
-      const img: ColumnItem[] = [image(id(), placeholderImage("Image", "#5B21B6", "#8B5CF6", 300, 260), "Feature image", { paddingX: 0 })];
+      const img: ColumnItem[] = [image(id(), photo("team", 300, 260), "Feature image", { paddingX: 0 })];
       const txt: ColumnItem[] = [heading(id(), "Feature headline", { size: 20, paddingX: 0 }), paragraph(id(), "Explain the feature and why it matters to {{first_name}}.", { paddingX: 0 }), button(id(), "Find out more", "https://evoq.one", { align: "left", paddingX: 0 })];
       blocks.push(columns(id(), key === "image-text" ? [img, txt] : [txt, img]));
       break;
@@ -211,17 +245,17 @@ export function buildLayout(key: LayoutKey, id: IdFn = newBlockId): EmailContent
       break;
     case "promotional":
       blocks.push(
-        image(id(), placeholderImage("BIG SALE", "#FF7D3D", "#E85D87", 600, 240), "Sale banner", { paddingX: 0, paddingY: 0 }),
-        heading(id(), "Up to 40% off, this week only", { align: "center" }),
+        image(id(), photo("saleTags", 600, 240), "Sale banner", { paddingX: 0, paddingY: 0 }),
+        heading(id(), "Up to 50% off, this week only", { align: "center" }),
         paragraph(id(), "Use the code below at checkout.", { align: "center", paddingY: 0 }),
-        heading(id(), "SAVE40", { size: 30, align: "center", color: "#E0601F", background: "#FFF3EC", paddingY: 18 }),
+        heading(id(), "SAVE50", { size: 30, align: "center", color: "#E0601F", background: "#FFF3EC", paddingY: 18 }),
         button(id(), "Shop now", "https://evoq.one/sale"),
         columns(id(), [product(1, "$39.00"), product(2, "$59.00")]),
       );
       break;
     case "newsletter":
       blocks.push(
-        image(id(), placeholderImage("This month", "#3D1E5C", "#8B5CF6", 600, 220), "Newsletter masthead", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("desk", 600, 220), "Newsletter masthead", { paddingX: 0, paddingY: 0 }),
         heading(id(), "The lead story"),
         paragraph(id(), "Open with the most important news of the month, then point readers to the full article."),
         button(id(), "Read the story", "https://evoq.one/blog", { align: "left" }),

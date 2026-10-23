@@ -18,6 +18,7 @@ import {
   restoreCampaigns,
   resumeCampaign,
   scheduleCampaign,
+  sendCampaignNow,
   searchCampaigns,
   updateCampaign,
 } from "@/lib/api/campaigns";
@@ -106,6 +107,11 @@ export function useDuplicateCampaign() {
 export function useScheduleCampaign() {
   const invalidate = useInvalidateAll();
   return useMutation({ mutationFn: ({ id, at }: { id: string; at: string }) => scheduleCampaign(id, at), onSuccess: invalidate });
+}
+
+export function useSendCampaignNow() {
+  const invalidate = useInvalidateAll();
+  return useMutation({ mutationFn: (id: string) => sendCampaignNow(id), onSuccess: invalidate });
 }
 
 export function usePauseCampaign() {

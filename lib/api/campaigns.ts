@@ -11,7 +11,7 @@ import { automationSends, CONTACT_COUNT, CONTACT_LIMIT, CURRENT_USER, DEFAULT_SE
 import { liveAudience, selectionSummary } from "./audiences";
 import { ApiError, type BulkResult } from "./errors";
 import { activity, campaigns, clone, commit, delay, demoNow, newId as makeId, replaceCampaigns } from "./store";
-import type { ActivityEntry, AnalyticsChannel, AnalyticsData, AnalyticsTotals, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
+import type { AbResult, AbVariant, ActivityEntry, AnalyticsChannel, AnalyticsData, AnalyticsTotals, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
 
 export { ApiError, type BulkResult } from "./errors";
 export { getAudiences } from "./audiences";
@@ -341,7 +341,36 @@ function analyticsFor(c: Campaign, now: string): CampaignAnalytics | null {
   const counts = split(totalClicks, linkWeights);
   const links = set.map(([labelText, url], i) => ({ label: labelText, url: sms ? (c.message?.match(/evoq\.one\/\S+/)?.[0] ?? url) : url, clicks: counts[i], unique: Math.round(counts[i] * (0.76 + (hash(`${c.id}${i}`) % 10) / 100)) }));
 
-  return { engagement, engagementUnit, devices, clients, links, benchmark: benchmarkFor(sms ? "sms" : "email") };
+  return { engagement, engagementUnit, devices, clients, links, ab: abResultFor(c, now), benchmark: benchmarkFor(sms ? "sms" : "email") };
+}
+
+/**
+ * Subject-line test results, worked out from the campaign's overall rates: the test group is split
+ * evenly, one version leads by a few percent (seeded by the campaign), and once the test window has
+ * passed the leader is marked as the winner and goes to everyone else.
+ */
+function abResultFor(c: Campaign, now: string): AbResult | undefined {
+  const t = c.abTest;
+  if (!t || !c.sentAt || !c.sent || isSms(c)) return undefined;
+  const group = Math.round((c.recipients * t.testPercent) / 100);
+  const each = Math.floor(group / 2);
+  const aLeads = hash(`${c.id}:ab`) % 2 === 0;
+  const lift = 0.07 + (hash(`${c.id}:lift`) % 7) / 100;
+  const variant = (key: "a" | "b"): AbVariant => {
+    const leader = (key === "a") === aLeads;
+    const f = leader ? 1 + lift / 2 : 1 - lift / 2;
+    const delivered = Math.round(each * 0.99);
+    const opens = Math.round((delivered * (c.openRate ?? 0) * f) / 100);
+    const clicks = Math.round((delivered * (c.clickRate ?? 0) * f) / 100);
+    return { key, subject: key === "a" ? (c.subject ?? "") : t.subjectB, sent: each, opens, openRate: round1(pct(opens, delivered)), clicks, clickRate: round1(pct(clicks, delivered)) };
+  };
+  const variants = [variant("a"), variant("b")];
+  const decidesAt = new Date(parseDateTime(c.sentAt).getTime() + t.hours * 3_600_000);
+  const iso = `${decidesAt.getFullYear()}-${String(decidesAt.getMonth() + 1).padStart(2, "0")}-${String(decidesAt.getDate()).padStart(2, "0")}T${String(decidesAt.getHours()).padStart(2, "0")}:${String(decidesAt.getMinutes()).padStart(2, "0")}:00`;
+  const decided = iso <= now;
+  const score = (v: AbVariant) => (t.metric === "opens" ? v.openRate : v.clickRate);
+  const winner = decided ? (score(variants[0]) >= score(variants[1]) ? "a" : "b") : null;
+  return { phase: decided ? "decided" : "testing", metric: t.metric, variants, winner, remainder: Math.max(0, c.recipients - each * 2), decidesAt: iso };
 }
 
 export async function getCampaign(id: string): Promise<CampaignDetail> {
@@ -453,6 +482,10 @@ export async function updateCampaign(id: string, edit: CampaignEdit): Promise<Ca
   if (!contentLocked(c)) {
     set("subject", edit.subject?.trim(), "subject line");
     set("previewText", edit.previewText?.trim(), "preview text");
+    if (edit.abTest !== undefined && JSON.stringify(edit.abTest) !== JSON.stringify(c.abTest ?? null)) {
+      c.abTest = edit.abTest ? { ...edit.abTest, subjectB: edit.abTest.subjectB.trim() } : undefined;
+      changed.push("A/B test");
+    }
     set("message", edit.message?.trim(), "message");
     set("senderName", edit.senderName?.trim(), "sender name");
     set("senderEmail", edit.senderEmail?.trim(), "sender email");
@@ -553,6 +586,22 @@ export async function scheduleCampaign(id: string, at: string): Promise<Campaign
   c.pausedFrom = undefined;
   record(c, "scheduled", before ? `Rescheduled from ${formatDateTime(before)} to ${formatDateTime(at)}` : `Scheduled for ${formatDateTime(at)}`);
   log({ kind: activityKind(c.type), title: c.name, detail: `${before ? "Rescheduled" : "Scheduled"} for ${formatDateTime(at)}`, campaignId: c.id });
+  commit();
+  return clone(c);
+}
+
+/** Starts sending right away (the demo only records it; nothing is sent). */
+export async function sendCampaignNow(id: string): Promise<Campaign> {
+  await delay();
+  const c = find(id);
+  if (!canSchedule(c)) throw new ApiError("This campaign can't be sent");
+  const at = demoNow();
+  c.status = "sending";
+  c.scheduledAt = undefined;
+  c.sentAt = at;
+  c.pausedFrom = undefined;
+  record(c, "sending", "Sending started");
+  log({ kind: activityKind(c.type), title: c.name, detail: `Sending to ${c.recipients.toLocaleString("en-US")} ${isSms(c) ? "numbers" : "contacts"}`, campaignId: c.id });
   commit();
   return clone(c);
 }

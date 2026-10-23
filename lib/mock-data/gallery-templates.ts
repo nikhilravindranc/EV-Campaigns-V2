@@ -1,9 +1,10 @@
 /**
  * The larger ready-made gallery (Welcome, Thank you, Seasons, Deals, Holidays…).
- * Every design is built from the same blocks as the editor, with inline SVG
- * artwork, so previews render without any external image.
+ * Every design is built from the same blocks as the editor, with stock photography
+ * from lib/photos.ts (so previews need a network connection).
  */
-import { button, columns, DEFAULT_STYLE, divider, footer, heading, idFactory, image, paragraph, placeholderImage, social, spacer } from "@/lib/email-blocks";
+import { photo, type PhotoKey } from "@/lib/photos";
+import { button, columns, DEFAULT_STYLE, divider, footer, heading, idFactory, image, paragraph, social, spacer } from "@/lib/email-blocks";
 import type { EmailContent, EmailStyle, EmailTemplate } from "@/lib/types/templates";
 
 type Gallery = Omit<EmailTemplate, "createdAt" | "updatedAt">;
@@ -39,7 +40,7 @@ export const GALLERY_EXTRA: Gallery[] = [
         heading(id(), "WELCOME!", { size: 44, align: "center", color: "#FFFFFF", background: "#EC7BA6", paddingY: 28 }),
         paragraph(id(), "Welcome to {{org_name}}! Your personalized health journey starts now with our expert consultants.", { align: "center", color: "#FFFFFF", background: "#EC7BA6", paddingY: 4 }),
         button(id(), "LEARN MORE", "https://evoq.one/health", { background: "#EC7BA6", color: "#111111", textColor: "#FFFFFF", paddingY: 18 }),
-        image(id(), placeholderImage("☺", "#F5B5CD", "#EC7BA6", 600, 260), "Smiling card", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("yoga", 600, 280), "Wellness", { paddingX: 0, paddingY: 0 }),
         heading(id(), "The {{org_name}} approach", { size: 18, align: "center", color: "#FFFFFF", background: "#5A2140", paddingY: 18 }),
         columns(
           id(),
@@ -66,7 +67,7 @@ export const GALLERY_EXTRA: Gallery[] = [
         bar(id, "#1F8A70"),
         heading(id(), "Welcome", { size: 46, align: "center", color: "#FFFFFF", background: "#2D9D78", paddingY: 22 }),
         paragraph(id(), "Create memories that last a lifetime!", { align: "center", color: "#E6F6F0", background: "#2D9D78", paddingY: 0 }),
-        image(id(), placeholderImage("▲ ▲ ▲", "#2D9D78", "#A7E3CF", 600, 120), "Mountains", { paddingX: 0, paddingY: 0, background: "#2D9D78" }),
+        image(id(), photo("suitcase", 600, 200), "Travel", { paddingX: 0, paddingY: 0, background: "#2D9D78" }),
         paragraph(id(), "UNLOCK YOUR DREAM VACATION!", { align: "center", size: 13, color: "#1F8A70", paddingY: 14 }),
         heading(id(), "UP TO 25% OFF", { size: 34, align: "center", color: "#16624F", paddingY: 0 }),
         paragraph(id(), "on all hotel bookings with us*", { align: "center", size: 13 }),
@@ -91,11 +92,11 @@ export const GALLERY_EXTRA: Gallery[] = [
     design(
       "tw",
       (id) => [
-        heading(id(), "LOGO", { size: 14, align: "center", paddingY: 20 }),
+        heading(id(), "{{org_name}}", { size: 14, align: "center", paddingY: 20 }),
         heading(id(), "Connect Your Amazing Products and Services to the Right Audience", { size: 28, align: "center", paddingY: 4 }),
         paragraph(id(), "Keep track of your customers effortlessly without the hassle of complicated invoicing tools and applications.", { align: "center", size: 14, color: "#5D5970" }),
         button(id(), "Explore", "https://evoq.one/explore"),
-        image(id(), placeholderImage("Say hello 👋", "#2B6E66", "#7CC4B8", 600, 300), "Smiling customer", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("laptop", 600, 300), "Smiling customer", { paddingX: 0, paddingY: 0 }),
         columns(id(), [
           [heading(id(), "120+", { size: 22, align: "center", paddingX: 0, color: "#D9542C" }), paragraph(id(), "Total sent", { size: 12, align: "center", paddingX: 0 })],
           [heading(id(), "98%", { size: 22, align: "center", paddingX: 0, color: "#D9542C" }), paragraph(id(), "Delivered", { size: 12, align: "center", paddingX: 0 })],
@@ -114,11 +115,11 @@ export const GALLERY_EXTRA: Gallery[] = [
     design(
       "wb",
       (id) => [
-        heading(id(), "♥ logo.", { size: 15, align: "center", color: "#FFFFFF", background: "#C81E45", paddingY: 18 }),
+        heading(id(), "{{org_name}}", { size: 15, align: "center", color: "#FFFFFF", background: "#C81E45", paddingY: 18 }),
         paragraph(id(), "WELCOMING HAPPY HEARTS!", { size: 12, color: "#C81E45", paddingY: 18 }),
         heading(id(), "Make every beat Count!", { size: 32, color: "#272238", paddingY: 0 }),
         button(id(), "Learn More", "https://evoq.one/heart", { align: "left" }),
-        image(id(), placeholderImage("❤", "#FCE7EC", "#F7B5C4", 600, 220), "Heart", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("running", 600, 240), "Heart health", { paddingX: 0, paddingY: 0 }),
         heading(id(), "We help you keep your Heart healthy?", { size: 20, align: "center", color: "#FFFFFF", background: "#A3153A", paddingY: 20 }),
         paragraph(id(), "We're dedicated to partnering with you on your journey to optimal heart health — from preventive screenings to personal coaching.", { align: "center", size: 13, color: "#FBD5DF", background: "#A3153A" }),
         footer(id()),
@@ -134,10 +135,10 @@ export const GALLERY_EXTRA: Gallery[] = [
     design(
       "ws",
       (id) => [
-        heading(id(), "LOGO", { size: 14, align: "center", paddingY: 20 }),
+        heading(id(), "{{org_name}}", { size: 14, align: "center", paddingY: 20 }),
         heading(id(), "Welcome", { size: 34, align: "center", paddingY: 4 }),
         paragraph(id(), "We think this is the beginning of something special.", { align: "center", color: "#5D5970" }),
-        image(id(), placeholderImage("✦ Hello! ✦", "#E9E4FB", "#C9BEF3", 600, 260), "Illustration", { paddingX: 24 }),
+        image(id(), photo("coffee", 600, 260), "Illustration", { paddingX: 24 }),
         paragraph(id(), "Hi {{first_name}}, thanks for signing up. Over the next few days we'll share tips to help you get the most out of {{org_name}}.", { align: "center" }),
         button(id(), "Get started", "https://evoq.one/start"),
         footer(id()),
@@ -153,16 +154,16 @@ export const GALLERY_EXTRA: Gallery[] = [
     design(
       "wtr",
       (id) => [
-        heading(id(), "LOGO", { size: 14, align: "center", color: "#FFFFFF", paddingY: 20 }),
+        heading(id(), "{{org_name}}", { size: 14, align: "center", color: "#FFFFFF", paddingY: 20 }),
         heading(id(), "Welcome to our tribe!", { size: 30, align: "center", color: "#FFFFFF", paddingY: 4 }),
         paragraph(id(), "Today, our mission to impart knowledge and create a community of enlightened thinkers has taken a big step forward now that you're here.", { align: "center", color: "#F3D9E6", size: 14 }),
         button(id(), "Explore", "https://evoq.one/community", { color: "#E8C547", textColor: "#3A1029" }),
         columns(
           id(),
           [
-            [image(id(), placeholderImage("☺", "#F4A261", "#E76F51", 200, 200), "Member", { paddingX: 0 })],
-            [image(id(), placeholderImage("☺", "#2A9D8F", "#8AB17D", 200, 200), "Member", { paddingX: 0 })],
-            [image(id(), placeholderImage("☺", "#E9C46A", "#F4A261", 200, 200), "Member", { paddingX: 0 })],
+            [image(id(), photo("womanA", 200, 200), "Member", { paddingX: 0 })],
+            [image(id(), photo("manA", 200, 200), "Member", { paddingX: 0 })],
+            [image(id(), photo("womanB", 200, 200), "Member", { paddingX: 0 })],
           ],
           { gap: 6, paddingX: 0, paddingY: 0 },
         ),
@@ -182,10 +183,14 @@ export const GALLERY_EXTRA: Gallery[] = [
       "to",
       (id) => [
         bar(id, "#2D9D78"),
-        image(id(), placeholderImage("Thank you! ✓", "#2D9D78", "#7DD3B0", 600, 220), "Thank you", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("shopping", 600, 240), "Thank you", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Your order is on its way, {{first_name}}", { align: "center" }),
-        paragraph(id(), "We're packing it with care. You'll get a tracking link as soon as it ships.", { align: "center" }),
+        paragraph(id(), "Order #10482 · Estimated delivery in 2–3 days. We're packing it with care and will send a tracking link as soon as it ships.", { align: "center" }),
         divider(id()),
+        columns(id(), [
+          [image(id(), photo("watch", 260, 200), "Smart watch", { paddingX: 0 }), paragraph(id(), "Smart watch · $129.00", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("shoes", 260, 200), "Running shoes", { paddingX: 0 }), paragraph(id(), "Running shoes · $89.00", { size: 13, align: "center", paddingX: 0 })],
+        ]),
         paragraph(id(), "A little thank-you: use THANKS10 for 10% off your next order.", { align: "center", color: "#1F8A66", background: "#E9F6F1", paddingY: 16 }),
         button(id(), "Track my order", "https://evoq.one/orders"),
         footer(id()),
@@ -202,11 +207,12 @@ export const GALLERY_EXTRA: Gallery[] = [
       "te",
       (id) => [
         bar(id, "#5B21B6"),
-        heading(id(), "Thank you for joining us!", { size: 30, align: "center", color: "#FFFFFF", background: "#7C3AED", paddingY: 30 }),
+        image(id(), photo("dining", 600, 240), "Attendees", { paddingX: 0, paddingY: 0 }),
+        heading(id(), "Thank you for joining us!", { size: 30, align: "center", paddingY: 22 }),
         paragraph(id(), "Hi {{first_name}}, it was great to have you. Here's everything from the session.", { align: "center" }),
         columns(id(), [
-          [image(id(), placeholderImage("▶ Recording", "#5B21B6", "#A78BFA", 300, 180), "Recording", { paddingX: 0 }), button(id(), "Watch", "https://evoq.one/recording", { paddingX: 0, fullWidth: true })],
-          [image(id(), placeholderImage("Slides", "#3D1E5C", "#7C3AED", 300, 180), "Slides", { paddingX: 0 }), button(id(), "Download", "https://evoq.one/slides", { paddingX: 0, fullWidth: true })],
+          [image(id(), photo("webinar", 300, 180), "Recording", { paddingX: 0 }), button(id(), "Watch", "https://evoq.one/recording", { paddingX: 0, fullWidth: true })],
+          [image(id(), photo("desk", 300, 180), "Slides", { paddingX: 0 }), button(id(), "Download", "https://evoq.one/slides", { paddingX: 0, fullWidth: true })],
         ]),
         social(id()),
         footer(id()),
@@ -228,12 +234,12 @@ export const GALLERY_EXTRA: Gallery[] = [
         paragraph(id(), "Five-minute read · Issue #20", { size: 12, color: "#777386", paddingY: 0 }),
         divider(id()),
         ...[
-          ["Subject lines that get opened", "#3B5998", "#8BA3D6"],
-          ["Designing for dark mode", "#5B21B6", "#A78BFA"],
-          ["What we shipped this week", "#2D9D78", "#7DD3B0"],
-        ].flatMap(([t, a, b]) => [
+          ["Subject lines that get opened", "laptop"],
+          ["Designing for dark mode", "code"],
+          ["What we shipped this week", "teamwork"],
+        ].flatMap(([t, key]) => [
           columns(id(), [
-            [image(id(), placeholderImage("Story", a, b, 260, 170), t, { paddingX: 0 })],
+            [image(id(), photo(key as PhotoKey, 260, 170), t, { paddingX: 0 })],
             [heading(id(), t, { size: 17, paddingX: 0 }), paragraph(id(), "A quick summary of the story and why it matters to you.", { size: 13, paddingX: 0 }), button(id(), "Read more", "https://evoq.one/blog", { align: "left", paddingX: 0, paddingY: 4 })],
           ]),
         ]),
@@ -258,9 +264,9 @@ export const GALLERY_EXTRA: Gallery[] = [
         button(id(), "Get early-bird tickets", "https://evoq.one/summit", { background: "#1E1B3A", paddingY: 24 }),
         heading(id(), "Featured speakers", { size: 18, align: "center" }),
         columns(id(), [
-          [image(id(), placeholderImage("☺", "#FF7D3D", "#FFB089", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Maya Patel\nCMO, Brightwave", { size: 12, align: "center", paddingX: 0 })],
-          [image(id(), placeholderImage("☺", "#7C3AED", "#C4B5FD", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Leo Martin\nFounder, Quartz", { size: 12, align: "center", paddingX: 0 })],
-          [image(id(), placeholderImage("☺", "#3B5998", "#8BA3D6", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Hana Ito\nVP Growth, Helix", { size: 12, align: "center", paddingX: 0 })],
+          [image(id(), photo("manB", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Maya Patel\nCMO, Brightwave", { size: 12, align: "center", paddingX: 0 })],
+          [image(id(), photo("womanC", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Leo Martin\nFounder, Quartz", { size: 12, align: "center", paddingX: 0 })],
+          [image(id(), photo("manC", 200, 200), "Speaker", { paddingX: 0 }), paragraph(id(), "Hana Ito\nVP Growth, Helix", { size: 12, align: "center", paddingX: 0 })],
         ]),
         footer(id()),
       ],
@@ -278,8 +284,9 @@ export const GALLERY_EXTRA: Gallery[] = [
       "sf",
       (id) => [
         bar(id, "#E85D87"),
-        heading(id(), "FLASH SALE ⚡", { size: 40, align: "center", color: "#FFFFFF", background: "#FF7D3D", paddingY: 28 }),
-        paragraph(id(), "6 hours only · 30% off everything", { align: "center", color: "#FFFFFF", background: "#FF7D3D", paddingY: 0 }),
+        image(id(), photo("saleTags", 600, 260), "Sale", { paddingX: 0, paddingY: 0 }),
+        heading(id(), "Flash sale: 50% off everything", { size: 30, align: "center", paddingY: 22 }),
+        paragraph(id(), "6 hours only. Our biggest discount of the season ends tonight.", { align: "center", paddingY: 0 }),
         spacer(id(), 20),
         heading(id(), "05 : 59 : 42", { size: 30, align: "center", color: "#E85D87" }),
         paragraph(id(), "Hours · Minutes · Seconds", { size: 12, align: "center", color: "#777386", paddingY: 0 }),
@@ -300,13 +307,13 @@ export const GALLERY_EXTRA: Gallery[] = [
       "ss",
       (id) => [
         bar(id, "#F59E0B"),
-        image(id(), placeholderImage("☀ Hello Summer", "#FBBF24", "#FF7D3D", 600, 260), "Hello summer", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("beach", 600, 260), "Hello summer", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Sun's out, {{first_name}}!", { align: "center" }),
         paragraph(id(), "Fresh picks for long days — light layers, bright colours and everything for the beach.", { align: "center" }),
         columns(id(), [
-          [image(id(), placeholderImage("Hats", "#FBBF24", "#FDE68A", 200, 200), "Hats", { paddingX: 0 }), paragraph(id(), "Hats · $24", { size: 13, align: "center", paddingX: 0 })],
-          [image(id(), placeholderImage("Shades", "#FF7D3D", "#FFB089", 200, 200), "Shades", { paddingX: 0 }), paragraph(id(), "Shades · $39", { size: 13, align: "center", paddingX: 0 })],
-          [image(id(), placeholderImage("Towels", "#2D9D78", "#7DD3B0", 200, 200), "Towels", { paddingX: 0 }), paragraph(id(), "Towels · $19", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("hat", 200, 200), "Hats", { paddingX: 0 }), paragraph(id(), "Hats · $24", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("sunglasses", 200, 200), "Shades", { paddingX: 0 }), paragraph(id(), "Shades · $39", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("tropical", 200, 200), "Beach day", { paddingX: 0 }), paragraph(id(), "Beach day · $19", { size: 13, align: "center", paddingX: 0 })],
         ]),
         button(id(), "Shop summer", "https://evoq.one/summer"),
         footer(id()),
@@ -323,9 +330,14 @@ export const GALLERY_EXTRA: Gallery[] = [
       "sa",
       (id) => [
         heading(id(), "{{org_name}}", { size: 16, align: "center", color: "#7C2D12", paddingY: 18 }),
-        image(id(), placeholderImage("Autumn / Fall", "#9A3412", "#F59E0B", 600, 280), "Autumn collection", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("autumn", 600, 280), "Autumn collection", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Cosy season is here", { align: "center", color: "#7C2D12" }),
         paragraph(id(), "Knits, boots and warm drinks — our autumn collection is ready when you are.", { align: "center" }),
+        columns(id(), [
+          [image(id(), photo("cozy", 200, 200), "Home", { paddingX: 0 }), paragraph(id(), "Cosy home", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("fashion", 200, 200), "Knitwear", { paddingX: 0 }), paragraph(id(), "Knitwear", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("coffee", 200, 200), "Warm drinks", { paddingX: 0 }), paragraph(id(), "Warm drinks", { size: 13, align: "center", paddingX: 0 })],
+        ]),
         button(id(), "Discover the collection", "https://evoq.one/autumn"),
         footer(id(), { background: "#FBEDE2" }),
       ],
@@ -343,6 +355,7 @@ export const GALLERY_EXTRA: Gallery[] = [
       "dc",
       (id) => [
         bar(id, "#5B21B6"),
+        image(id(), photo("gifts", 600, 240), "Gift", { paddingX: 0, paddingY: 0 }),
         heading(id(), "A gift just for you, {{first_name}}", { align: "center" }),
         paragraph(id(), "Here's an exclusive code for being one of our best customers.", { align: "center" }),
         heading(id(), "VIP25", { size: 40, align: "center", color: "#5B21B6", background: "#F3E8FF", paddingY: 24 }),
@@ -361,11 +374,12 @@ export const GALLERY_EXTRA: Gallery[] = [
       "db",
       (id) => [
         bar(id, "#E85D87"),
+        image(id(), photo("bags", 600, 240), "Weekend deal", { paddingX: 0, paddingY: 0 }),
         heading(id(), "BUY 1 GET 1 FREE", { size: 32, align: "center", color: "#E85D87", paddingY: 24 }),
         paragraph(id(), "On all bestsellers this weekend. No code needed.", { align: "center" }),
         columns(id(), [
-          [image(id(), placeholderImage("Buy one", "#E85D87", "#F6A5BE", 300, 220), "Buy one", { paddingX: 0 }), button(id(), "Shop", "https://evoq.one/bogo", { paddingX: 0, fullWidth: true })],
-          [image(id(), placeholderImage("Get one FREE", "#7C3AED", "#C4B5FD", 300, 220), "Get one free", { paddingX: 0 }), button(id(), "Shop", "https://evoq.one/bogo", { paddingX: 0, fullWidth: true })],
+          [image(id(), photo("fashion", 300, 220), "Buy one", { paddingX: 0 }), paragraph(id(), "Buy one: the classic tee", { size: 13, align: "center", paddingX: 0 }), button(id(), "Shop", "https://evoq.one/bogo", { paddingX: 0, fullWidth: true })],
+          [image(id(), photo("shoes", 300, 220), "Get one free", { paddingX: 0 }), paragraph(id(), "Get one free: the runner", { size: 13, align: "center", paddingX: 0 }), button(id(), "Shop", "https://evoq.one/bogo", { paddingX: 0, fullWidth: true })],
         ]),
         footer(id()),
       ],
@@ -383,9 +397,14 @@ export const GALLERY_EXTRA: Gallery[] = [
       "hf",
       (id) => [
         heading(id(), "{{org_name}}", { size: 15, align: "center", color: "#FDE68A", background: "#14532D", paddingY: 18 }),
-        image(id(), placeholderImage("❄ Happy Holidays ❄", "#B91C1C", "#14532D", 600, 260), "Happy holidays", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("holiday", 600, 260), "Happy holidays", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Warm wishes from all of us", { align: "center", color: "#14532D" }),
         paragraph(id(), "Thank you for a wonderful year, {{first_name}}. Our holiday gift guide has something for everyone on your list.", { align: "center" }),
+        columns(id(), [
+          [image(id(), photo("watch", 200, 200), "Gifts under $150", { paddingX: 0 }), paragraph(id(), "Under $150", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("headphones", 200, 200), "Gifts under $100", { paddingX: 0 }), paragraph(id(), "Under $100", { size: 13, align: "center", paddingX: 0 })],
+          [image(id(), photo("skincare", 200, 200), "Gifts under $50", { paddingX: 0 }), paragraph(id(), "Under $50", { size: 13, align: "center", paddingX: 0 })],
+        ]),
         button(id(), "Open the gift guide", "https://evoq.one/gifts"),
         footer(id()),
       ],
@@ -401,8 +420,14 @@ export const GALLERY_EXTRA: Gallery[] = [
       "hn",
       (id) => [
         heading(id(), "{{org_name}}", { size: 15, align: "center", color: "#FCD34D", paddingY: 20 }),
+        image(id(), photo("champagne", 600, 240), "Celebration", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Here's to 2026 ✨", { size: 36, align: "center", color: "#FFFFFF", paddingY: 18 }),
         paragraph(id(), "Thank you for being part of our story this year. We can't wait to show you what's next.", { align: "center", color: "#C7D2FE" }),
+        columns(id(), [
+          [heading(id(), "1.2M", { size: 26, align: "center", color: "#FCD34D", paddingX: 0 }), paragraph(id(), "messages delivered", { size: 12, align: "center", color: "#C7D2FE", paddingX: 0 })],
+          [heading(id(), "48", { size: 26, align: "center", color: "#FCD34D", paddingX: 0 }), paragraph(id(), "campaigns launched", { size: 12, align: "center", color: "#C7D2FE", paddingX: 0 })],
+          [heading(id(), "98%", { size: 26, align: "center", color: "#FCD34D", paddingX: 0 }), paragraph(id(), "delivery rate", { size: 12, align: "center", color: "#C7D2FE", paddingX: 0 })],
+        ]),
         button(id(), "See our year in review", "https://evoq.one/2025", { color: "#FCD34D", textColor: "#1E1B4B" }),
         footer(id(), { background: "#14123A" }),
       ],

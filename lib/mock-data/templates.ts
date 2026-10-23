@@ -3,7 +3,8 @@
  * the app) and a few templates the team "made" earlier (My Templates).
  */
 import { addDays } from "@/lib/format";
-import { buildLayout, button, columns, DEFAULT_STYLE, divider, footer, heading, idFactory, image, paragraph, placeholderImage, social, spacer } from "@/lib/email-blocks";
+import { photo } from "@/lib/photos";
+import { buildLayout, button, columns, DEFAULT_STYLE, divider, footer, heading, idFactory, image, paragraph, social, spacer } from "@/lib/email-blocks";
 import type { EmailContent, EmailTemplate, TemplateCategory } from "@/lib/types/templates";
 import { DEMO_TODAY } from "./campaigns";
 import { GALLERY_EXTRA } from "./gallery-templates";
@@ -56,14 +57,14 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
     createdBy: "EVOQ",
     content: makeDesign("gn", (id) => [
       logo(id),
-      image(id(), placeholderImage("The Monthly", "#3D1E5C", "#8B5CF6", 600, 220), "The Monthly", { paddingX: 0, paddingY: 0 }),
+      image(id(), photo("coffee", 600, 220), "The Monthly", { paddingX: 0, paddingY: 0 }),
       heading(id(), "Hi {{first_name}}, here's what's new this month"),
       paragraph(id(), "We've been busy. Here's a short roundup of the launches, stories and tips our readers liked most."),
       button(id(), "Read the full issue", "https://evoq.one/blog", { align: "left" }),
       divider(id()),
       columns(id(), [
-        [image(id(), placeholderImage("Story", "#5B21B6", "#A78BFA", 300, 180), "Story image", { paddingX: 0 }), heading(id(), "Customer story", { size: 17, paddingX: 0 }), paragraph(id(), "How one team doubled its email revenue in a quarter.", { size: 14, paddingX: 0 })],
-        [image(id(), placeholderImage("Tips", "#7C3AED", "#C4B5FD", 300, 180), "Tips image", { paddingX: 0 }), heading(id(), "Five quick tips", { size: 17, paddingX: 0 }), paragraph(id(), "Small changes that lift open rates straight away.", { size: 14, paddingX: 0 })],
+        [image(id(), photo("team", 300, 180), "Story image", { paddingX: 0 }), heading(id(), "Customer story", { size: 17, paddingX: 0 }), paragraph(id(), "How one team doubled its email revenue in a quarter.", { size: 14, paddingX: 0 })],
+        [image(id(), photo("desk", 300, 180), "Tips image", { paddingX: 0 }), heading(id(), "Five quick tips", { size: 17, paddingX: 0 }), paragraph(id(), "Small changes that lift open rates straight away.", { size: 14, paddingX: 0 })],
       ]),
       social(id()),
       footer(id()),
@@ -81,13 +82,13 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
       "gp",
       (id) => [
         logo(id, "#FF7D3D"),
-        image(id(), placeholderImage("UP TO 40% OFF", "#FF7D3D", "#E85D87", 600, 260), "Up to 40% off", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("retail", 600, 260), "Up to 40% off", { paddingX: 0, paddingY: 0 }),
         heading(id(), "{{first_name}}, our biggest sale of the season is on", { align: "center" }),
         paragraph(id(), "Use code SAVE40 at checkout. Ends Sunday at midnight.", { align: "center" }),
         button(id(), "Shop the sale", "https://evoq.one/sale"),
         columns(id(), [
-          [image(id(), placeholderImage("Best seller", "#FF7D3D", "#FFB089", 300, 220), "Best seller", { paddingX: 0 }), paragraph(id(), "Best seller — $49", { align: "center", paddingX: 0 })],
-          [image(id(), placeholderImage("New in", "#E85D87", "#F6A5BE", 300, 220), "New in", { paddingX: 0 }), paragraph(id(), "New in — $64", { align: "center", paddingX: 0 })],
+          [image(id(), photo("shoes", 300, 220), "Best seller", { paddingX: 0 }), paragraph(id(), "Best seller — $49", { align: "center", paddingX: 0 })],
+          [image(id(), photo("fashion", 300, 220), "New in", { paddingX: 0 }), paragraph(id(), "New in — $64", { align: "center", paddingX: 0 })],
         ]),
         footer(id()),
       ],
@@ -104,7 +105,7 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
     createdBy: "EVOQ",
     content: makeDesign("gw", (id) => [
       logo(id),
-      image(id(), placeholderImage("Welcome aboard", "#5B21B6", "#8B5CF6", 600, 240), "Welcome aboard", { paddingX: 0, paddingY: 0 }),
+      image(id(), photo("welcome", 600, 240), "Welcome aboard", { paddingX: 0, paddingY: 0 }),
       heading(id(), "Welcome, {{first_name}}!", { align: "center" }),
       paragraph(id(), "Thanks for joining {{org_name}}. Here are three quick ways to get started.", { align: "center" }),
       columns(id(), [
@@ -126,12 +127,12 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
     createdBy: "EVOQ",
     content: makeDesign("gl", (id) => [
       logo(id),
-      image(id(), placeholderImage("Introducing Journeys", "#3D1E5C", "#7C3AED", 600, 280), "Introducing Journeys", { paddingX: 0, paddingY: 0 }),
+      image(id(), photo("analytics", 600, 280), "Introducing Journeys", { paddingX: 0, paddingY: 0 }),
       heading(id(), "Meet the newest addition to {{org_name}}", { align: "center" }),
       paragraph(id(), "Map every step of your customer's path and send the right message at the right moment.", { align: "center" }),
       columns(id(), [
-        [image(id(), placeholderImage("Visual", "#5B21B6", "#A78BFA", 300, 200), "Visual builder", { paddingX: 0 }), heading(id(), "Visual builder", { size: 17, paddingX: 0 }), paragraph(id(), "Drag, drop and connect steps.", { size: 14, paddingX: 0 })],
-        [image(id(), placeholderImage("Insights", "#7C3AED", "#DDD6FE", 300, 200), "Live insights", { paddingX: 0 }), heading(id(), "Live insights", { size: 17, paddingX: 0 }), paragraph(id(), "See where people drop off.", { size: 14, paddingX: 0 })],
+        [image(id(), photo("code", 300, 200), "Visual builder", { paddingX: 0 }), heading(id(), "Visual builder", { size: 17, paddingX: 0 }), paragraph(id(), "Drag, drop and connect steps.", { size: 14, paddingX: 0 })],
+        [image(id(), photo("office", 300, 200), "Live insights", { paddingX: 0 }), heading(id(), "Live insights", { size: 17, paddingX: 0 }), paragraph(id(), "See where people drop off.", { size: 14, paddingX: 0 })],
       ]),
       button(id(), "Watch the demo", "https://evoq.one/demo"),
       footer(id()),
@@ -147,6 +148,7 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
     createdBy: "EVOQ",
     content: makeDesign("ga", (id) => [
       logo(id),
+      image(id(), photo("office", 600, 220), "Our team at work", { paddingX: 0, paddingY: 0 }),
       heading(id(), "An update for you, {{first_name}}"),
       paragraph(id(), "We've made a few improvements based on your feedback:\n\n• Faster reports that load in under a second\n• Smarter template suggestions\n• A cleaner contacts view"),
       button(id(), "See what's new", "https://evoq.one/whats-new", { align: "left" }),
@@ -166,7 +168,7 @@ const GALLERY: Omit<EmailTemplate, "createdAt" | "updatedAt">[] = [
       "ge",
       (id) => [
         logo(id, "#3B5998"),
-        image(id(), placeholderImage("You're invited", "#3B5998", "#7C3AED", 600, 240), "You're invited", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("auditorium", 600, 240), "You're invited", { paddingX: 0, paddingY: 0 }),
         heading(id(), "Join us live, {{first_name}}", { align: "center" }),
         paragraph(id(), "Email Automation 101 — a 30-minute live session with Q&A.", { align: "center" }),
         columns(id(), [
@@ -208,7 +210,7 @@ const MINE: EmailTemplate[] = [
       "t1002",
       (id) => [
         logo(id, "#FF7D3D"),
-        image(id(), placeholderImage("SUMMER SALE", "#FF7D3D", "#7C3AED", 600, 260), "Summer Sale", { paddingX: 0, paddingY: 0 }),
+        image(id(), photo("beach", 600, 260), "Summer Sale", { paddingX: 0, paddingY: 0 }),
         heading(id(), "☀️ Summer Sale is here — up to 40% off", { align: "center" }),
         paragraph(id(), "Hi {{first_name}}, our biggest sale of the season starts now. Stock up on favourites before they're gone.", { align: "center" }),
         button(id(), "Shop the sale", "https://evoq.one/sale"),

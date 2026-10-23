@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowCounterClockwiseIcon, BellIcon, CaretDownIcon, GearSixIcon, InfoIcon, ListIcon, MagnifyingGlassIcon, PlusIcon, QuestionIcon, SignOutIcon, UserCircleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowCounterClockwiseIcon, BellIcon, BookOpenTextIcon, CaretDownIcon, GearSixIcon, InfoIcon, LifebuoyIcon, LightbulbIcon, ListIcon, MagnifyingGlassIcon, PlayCircleIcon, PlusIcon, QuestionIcon, RocketLaunchIcon, SignOutIcon, UserCircleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CreateCampaignDialog, useCreateDialog } from "@/components/campaigns/campaign-dialogs";
 import { ConfirmDialog, primaryButtonClass, StatusBadge, TypeIcon } from "@/components/shared/campaign-ui";
@@ -13,6 +13,7 @@ import { useStoredState } from "@/hooks/use-stored-state";
 import { resetDemoData } from "@/lib/api/store";
 import { initials } from "@/lib/format";
 import { CURRENT_USER } from "@/lib/mock-data/campaigns";
+import { guideById, HELP_ROUTE, SHORTCUTS, SUPPORT_EMAIL, topicFor } from "@/lib/help";
 import { notInPhase } from "@/lib/phase";
 import { CONTACTS_ROUTE, GALLERY_ROUTE, TEMPLATES_ROUTE } from "@/lib/content-session";
 import { CAMPAIGNS_ROUTE, campaignHref } from "@/lib/routes";
@@ -298,22 +299,62 @@ function CreateCampaignAction() {
   );
 }
 
-/** Help: shortcuts and what this prototype does and doesn't do. */
+/** Help: tips and guides for the current page, the Help Center, support, shortcuts, and what this prototype does and doesn't do. */
 function HelpMenu() {
+  const topic = topicFor(usePathname());
+  const guides = (topic?.guideIds ?? []).map(guideById).filter((g) => g !== undefined);
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger aria-label="Help" className={cn(toolClass, "hidden sm:inline-flex")}>
+      <DropdownMenuTrigger aria-label="Help" className={toolClass}>
         <QuestionIcon size={21} aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72 rounded-xl">
+      <DropdownMenuContent align="end" className="w-80 rounded-xl">
         <DropdownMenuLabel className="text-[14px] font-semibold text-ink">Help</DropdownMenuLabel>
+        {topic && (
+          <>
+            <div className="px-2 pb-2">
+              <p className="flex items-center gap-1.5 text-[12px] font-semibold text-campaign-depth">
+                <LightbulbIcon size={14} aria-hidden /> On this page: {topic.title}
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-[12.5px] leading-[18px] text-ink-body">
+                {topic.tips.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
+            {guides.map((g) => (
+              <DropdownMenuItem key={g.id} asChild>
+                <Link href={`${HELP_ROUTE}#${g.id}`}>
+                  <PlayCircleIcon aria-hidden /> <span className="min-w-0 flex-1 truncate">{g.title}</span>
+                  <span className="text-[11px] text-ink-muted">{g.minutes} min</span>
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem asChild>
+          <Link href={HELP_ROUTE}>
+            <BookOpenTextIcon aria-hidden /> Help Center and guides
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/getting-started">
+            <RocketLaunchIcon aria-hidden /> Setup checklist
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=EVOQ%20Campaigns%20support`}>
+            <LifebuoyIcon aria-hidden /> Contact support
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <div className="space-y-1.5 px-2 pb-2 text-[12.5px] text-ink-body">
-          <p className="flex justify-between">
-            Search campaigns <kbd className="rounded border border-line px-1.5 font-sans text-[11px] text-ink-muted">Ctrl K</kbd>
-          </p>
-          <p className="flex justify-between">
-            Focus search <kbd className="rounded border border-line px-1.5 font-sans text-[11px] text-ink-muted">/</kbd>
-          </p>
+          {SHORTCUTS.map((s) => (
+            <p key={s.keys} className="flex justify-between">
+              {s.label} <kbd className="rounded border border-line px-1.5 font-sans text-[11px] text-ink-muted">{s.keys}</kbd>
+            </p>
+          ))}
         </div>
         <DropdownMenuSeparator />
         <p className="px-2 py-1.5 text-[12px] leading-4 text-ink-muted">

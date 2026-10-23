@@ -81,6 +81,30 @@ export interface FooterBlock extends BlockBox {
   align: Align;
 }
 
+/** A product card: photo, name, price, short description and a buy button. */
+export interface ProductBlock extends BlockBox {
+  type: "product";
+  image: string;
+  name: string;
+  price: string;
+  description: string;
+  buttonLabel: string;
+  href: string;
+  align: Align;
+}
+
+/** Text shown only to contacts who match; everyone else sees the fallback (if any). */
+export interface DynamicBlock extends BlockBox {
+  type: "dynamic";
+  condition: "has-tag" | "in-list";
+  /** A tag, or a list id. */
+  value: string;
+  text: string;
+  fallback: string;
+  size: number;
+  align: Align;
+}
+
 /** Blocks that can sit inside a column. */
 export type ColumnItem = HeadingBlock | TextBlock | ImageBlock | ButtonBlock | DividerBlock | SpacerBlock;
 
@@ -91,7 +115,7 @@ export interface ColumnsBlock extends BlockBox {
   gap: number;
 }
 
-export type EmailBlock = ColumnItem | ColumnsBlock | SocialBlock | FooterBlock;
+export type EmailBlock = ColumnItem | ColumnsBlock | SocialBlock | FooterBlock | ProductBlock | DynamicBlock;
 export type BlockType = EmailBlock["type"];
 
 export interface EmailStyle {

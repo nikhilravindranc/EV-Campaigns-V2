@@ -107,6 +107,8 @@ export interface WorkflowStep {
   /** Update contact */
   action?: "add-tag" | "remove-tag" | "add-to-list" | "unsubscribe";
   actionValue?: string;
+  /** Condition: the path for contacts who don't match (they leave when it ends). Empty = they leave right away. */
+  otherwise?: WorkflowStep[];
 }
 
 export type WorkflowStatus = "draft" | "active" | "paused";

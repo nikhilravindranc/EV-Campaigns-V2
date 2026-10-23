@@ -133,7 +133,7 @@ export function ContactsView() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(25);
   const [sort, setSort] = useState<{ key: ContactSortKey; dir: "asc" | "desc" }>({ key: "addedAt", dir: "desc" });
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => (params.get("tag") ? { tag: params.get("tag")! } : {}));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [columns, setColumns] = useStoredState<string[]>("evoq-campaigns:contact-columns", DEFAULT_COLUMNS);
   const [importing, setImporting] = useState<"file" | "paste" | null>(null);

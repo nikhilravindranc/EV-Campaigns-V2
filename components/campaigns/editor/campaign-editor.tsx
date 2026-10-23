@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog, OutlineButton } from "@/components/shared/campaign-ui";
 import { RowMenu } from "@/components/shared/row-menu";
 import { SESSION_NOTE } from "@/components/shared/form-kit";
-import { useCreateDraftCampaign, useScheduleCampaign, useUpdateCampaign } from "@/hooks/use-campaigns";
+import { VERIFIED_KEY } from "@/components/getting-started/setup-steps";
+import { useCreateDraftCampaign, useScheduleCampaign, useSendCampaignNow, useUpdateCampaign } from "@/hooks/use-campaigns";
 import { useStoredState } from "@/hooks/use-stored-state";
 import { ApiError } from "@/lib/api/campaigns";
 import { demoNow } from "@/lib/api/store";
@@ -34,6 +35,7 @@ const FIELD_TARGET: Record<DraftField, string> = {
   senderName: "f-senderName",
   replyTo: "f-replyTo",
   subject: "f-subject",
+  subjectB: "f-subjectB",
   previewText: "f-previewText",
   message: "f-message",
   content: "content",
@@ -45,7 +47,10 @@ function savedAgo(iso: string) {
   const mins = (parseDateTime(now).getTime() - parseDateTime(iso).getTime()) / 60_000;
   if (mins < 1) return "a few seconds ago";
   if (mins < 60) return `${Math.floor(mins)} minute${Math.floor(mins) === 1 ? "" : "s"} ago`;
-  return formatRelative(iso, now).toLowerCase().replace(/^(\d+)h ago$/, "$1 hours ago").replace(/^(\d+)d ago$/, "$1 days ago");
+  return formatRelative(iso, now)
+    .toLowerCase()
+    .replace(/^(\d+)h ago$/, "$1 hours ago")
+    .replace(/^(\d+)d ago$/, "$1 days ago");
 }
 
 /** Status pill: violet for drafts, the status tone otherwise. */
@@ -69,10 +74,14 @@ function StatusPill({ status }: { status: Campaign["status"] }) {
 export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campaign; isNew?: boolean }) {
   const router = useRouter();
   const listHref = getCampaignsListHref();
-  const actions = useCampaignActions({ onDeleted: () => router.push(listHref) });
+  const actions = useCampaignActions({
+    onDeleted: () => router.push(listHref),
+  });
   const createDraft = useCreateDraftCampaign();
   const update = useUpdateCampaign();
   const scheduleM = useScheduleCampaign();
+  const sendNowM = useSendCampaignNow();
+  const [senderVerified, setSenderVerified] = useStoredState(VERIFIED_KEY, false);
   const sms = isSms(c);
 
   const [stored, setStored] = useStoredState<CampaignDraft | null>(draftKey(c.id), NONE, "session");
@@ -100,9 +109,15 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
   // Content picked in the gallery or the content editor lands here.
   useEffect(() => {
     if (!pending) return;
-    setStored({ ...(stored ?? base), content: pending.content, contentSource: pending.source });
+    setStored({
+      ...(stored ?? base),
+      content: pending.content,
+      contentSource: pending.source,
+    });
     setPending(null);
-    toast.success("Content added", { description: `${pending.source} · save the campaign to keep it` });
+    toast.success("Content added", {
+      description: `${pending.source} · save the campaign to keep it`,
+    });
   }, [pending, stored, base, setStored, setPending]);
 
   const focusFirstError = () => {
@@ -130,10 +145,20 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
       return null;
     }
     try {
-      const id = isNew ? (await createDraft.mutateAsync({ type: sms ? "sms" : "email", name: draft.name })).id : c.id;
+      const id = isNew
+        ? (
+            await createDraft.mutateAsync({
+              type: sms ? "sms" : "email",
+              name: draft.name,
+            })
+          ).id
+        : c.id;
       await update.mutateAsync({ id, edit: editFromDraft(draft, c) });
       setStored(null);
-      if (!quiet) toast.success(c.status === "draft" ? "Draft saved" : "Changes saved", { description: `${draft.name.trim()} · ${SESSION_NOTE}` });
+      if (!quiet)
+        toast.success(c.status === "draft" ? "Draft saved" : "Changes saved", {
+          description: `${draft.name.trim()} · ${SESSION_NOTE}`,
+        });
       if (isNew && open) router.replace(campaignHref(id));
       return id;
     } catch (e) {
@@ -149,7 +174,9 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
   const review = () => {
     if (errorCount) {
       revealErrors();
-      toast.error(`Fix ${pluralize(errorCount, "issue")} before launching`, { description: "Fields that need attention are marked in red." });
+      toast.error(`Fix ${pluralize(errorCount, "issue")} before launching`, {
+        description: "Fields that need attention are marked in red.",
+      });
       return;
     }
     setReviewing(true);
@@ -161,11 +188,35 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
     try {
       await scheduleM.mutateAsync({ id, at });
       setReviewing(false);
-      toast.success(c.status === "scheduled" ? "Campaign rescheduled" : "Campaign scheduled", { description: `${draft.name.trim()} · ${formatDateTime(at)} · demo only, nothing will be sent` });
+      toast.success(c.status === "scheduled" ? "Campaign rescheduled" : "Campaign scheduled", {
+        description: `${draft.name.trim()} · ${formatDateTime(at)} · demo only, nothing will be sent`,
+      });
     } catch (e) {
       toast.error("Couldn't schedule", { description: (e as Error).message });
     }
     if (isNew) router.replace(campaignHref(id));
+  };
+
+  const sendNow = async () => {
+    const id = await save({ quiet: true, open: false });
+    if (!id) return;
+    try {
+      await sendNowM.mutateAsync(id);
+      setReviewing(false);
+      toast.success("Sending started", {
+        description: `${draft.name.trim()} · demo only, nothing is actually sent`,
+      });
+    } catch (e) {
+      toast.error("Couldn't send", { description: (e as Error).message });
+    }
+    if (isNew) router.replace(campaignHref(id));
+  };
+
+  const verifySender = () => {
+    setSenderVerified(true);
+    toast.success("Sender verified", {
+      description: `${draft.senderEmail} · simulated, no DNS records were checked.`,
+    });
   };
 
   const discard = () => {
@@ -178,17 +229,33 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
   };
 
   const lastBy = [...c.history].reverse().find((h) => h.user)?.user ?? CURRENT_USER.name;
-  const saving = createDraft.isPending || update.isPending || scheduleM.isPending;
+  const saving = createDraft.isPending || update.isPending || scheduleM.isPending || sendNowM.isPending;
   const showSave = isNew || dirty;
 
   const menu = [
-    !sms && draft.content && { label: "Preview", icon: EyeIcon, onSelect: () => setPreviewing(true) },
+    !sms &&
+      draft.content && {
+        label: "Preview",
+        icon: EyeIcon,
+        onSelect: () => setPreviewing(true),
+      },
     !sms && {
       label: "Send test email",
       icon: PaperPlaneRightIcon,
-      onSelect: () => (draft.content ? toast.success("Test email simulated", { description: `Would go to ${CURRENT_USER.email} — nothing is sent in this demo.` }) : toast.info("Add content first", { description: "Choose a template or write the email, then send a test." })),
+      onSelect: () =>
+        draft.content
+          ? toast.success("Test email simulated", {
+              description: `Would go to ${CURRENT_USER.email} — nothing is sent in this demo.`,
+            })
+          : toast.info("Add content first", {
+              description: "Choose a template or write the email, then send a test.",
+            }),
     },
-    !isNew && { label: "View activity", icon: ChartBarIcon, href: `${campaignHref(c.id)}?view=report` },
+    !isNew && {
+      label: "View activity",
+      icon: ChartBarIcon,
+      href: `${campaignHref(c.id)}?view=report`,
+    },
     ...(isNew ? [] : actions.actionsFor(c, { onDetails: true }).filter((a) => a && !["Edit", "Preview", "Schedule", "Reschedule"].includes(a.label))),
   ];
 
@@ -198,7 +265,11 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
       <div className="sticky top-[60px] z-20 border-b border-line bg-white lg:top-[var(--header-h)]">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Link href={listHref} aria-label="Back to Campaigns" className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-campaign-depth transition-colors hover:bg-campaign-surface hover:text-campaign-action focus-visible:outline-2 focus-visible:outline-brand-action">
+            <Link
+              href={listHref}
+              aria-label="Back to Campaigns"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-campaign-depth transition-colors hover:bg-campaign-surface hover:text-campaign-action focus-visible:outline-2 focus-visible:outline-brand-action"
+            >
               <ArrowLeftIcon size={20} aria-hidden />
             </Link>
             <div className="min-w-0">
@@ -210,6 +281,7 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
                   id="f-name"
                   value={draft.name}
                   onChange={(e) => set("name", e.target.value)}
+                  onFocus={(e) => /^Untitled/.test(e.target.value) && e.target.select()}
                   maxLength={100}
                   size={Math.min(48, Math.max(12, draft.name.length + 1))}
                   aria-invalid={shown.name ? true : undefined}
@@ -307,6 +379,9 @@ export function CampaignEditor({ campaign: c, isNew = false }: { campaign: Campa
         campaign={c}
         draft={draft}
         saving={saving}
+        senderVerified={senderVerified}
+        onVerifySender={verifySender}
+        onSendNow={sendNow}
         onSaveDraft={async () => {
           if (await save()) setReviewing(false);
         }}
@@ -333,7 +408,11 @@ function SmsPreviewCard({ message, senderId }: { message: string; senderId?: str
       <div className="mx-auto mt-4 w-full max-w-[280px] rounded-[28px] border-[6px] border-campaign-depth bg-campaign-surface p-3 shadow-pop">
         <p className="mb-3 text-center text-[11px] font-medium text-ink-muted">{senderId}</p>
         <div className="min-h-[180px]">
-          {message ? <p className="max-w-[88%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13px] leading-5 break-words text-ink shadow-card">{message}</p> : <p className="pt-10 text-center text-[12.5px] text-ink-faint">Your message appears here</p>}
+          {message ? (
+            <p className="max-w-[88%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13px] leading-5 break-words text-ink shadow-card">{message}</p>
+          ) : (
+            <p className="pt-10 text-center text-[12.5px] text-ink-faint">Your message appears here</p>
+          )}
         </div>
       </div>
     </section>

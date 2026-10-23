@@ -4,21 +4,21 @@
  * shows the same numbers. Changes people make are saved on top (lib/api/store).
  */
 import { addDays, addMinutes, daysBetween, formatDateTime, formatNumber, pct } from "@/lib/format";
-import type { Audience, Campaign, CampaignEvent, CampaignStatus, CampaignType } from "@/lib/types/campaigns";
+import type { AbTest, Audience, Campaign, CampaignEvent, CampaignStatus, CampaignType } from "@/lib/types/campaigns";
 
 /** The demo's "today" — matches the reference dashboard (May 12 – May 18, 2025). */
 export const DEMO_TODAY = "2025-05-18";
 export const DEMO_NOW = `${DEMO_TODAY}T10:30:00`;
 
 /** Who is signed in to the demo. */
-export const CURRENT_USER = { name: "Alex John", firstName: "Alex", org: "Evoq Solutions", email: "alex.john@evoqsolutions.com" };
+export const CURRENT_USER = { name: "Alex John", firstName: "Alex", org: "EVOQ", email: "alex.john@evoq.one" };
 const TEAM = ["Alex John", "Priya Sharma", "Daniel Kim"];
 
 export const CONTACT_COUNT = 12_458;
 export const CONTACT_LIMIT = 25_000;
 export const PLAN_NAME = "Professional";
 
-export const DEFAULT_SENDER = { name: "Evoq Solutions", email: "hello@evoqsolutions.com", smsId: "EVOQSOL" };
+export const DEFAULT_SENDER = { name: "EVOQ", email: "hello@evoq.one", smsId: "EVOQ" };
 
 // ── Seeded randomness ────────────────────────────────────────────────
 
@@ -293,8 +293,14 @@ function build(s: Seed): Campaign {
   return c;
 }
 
+/** Sample subject-line tests on two sent campaigns, so the report shows one. */
+export const AB_SEEDS: Record<string, AbTest> = {
+  "cmp-1001": { subjectB: "Summer Sale: 40% off ends Sunday", testPercent: 20, metric: "opens", hours: 4 },
+  "cmp-1010": { subjectB: "Your weekend flash deals are live", testPercent: 30, metric: "clicks", hours: 2 },
+};
+
 export function seedCampaigns(): Campaign[] {
-  return SEEDS.map(build);
+  return SEEDS.map(build).map((c) => (AB_SEEDS[c.id] ? { ...c, abTest: AB_SEEDS[c.id] } : c));
 }
 
 // ── Contacts ─────────────────────────────────────────────────────────

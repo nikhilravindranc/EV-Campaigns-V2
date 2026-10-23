@@ -132,7 +132,8 @@ export function TemplateGallery() {
 
   return (
     <div className="flex flex-1 flex-col p-3 sm:p-4">
-      <div className="flex min-h-[calc(100dvh-60px-2rem)] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card lg:min-h-[calc(100dvh-var(--header-h)-2rem)]">
+      {/* Fixed height (not min-height) so the grid scrolls inside and the selection bar stays in view. */}
+      <div className="flex h-[calc(100dvh-60px-2rem)] flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card lg:h-[calc(100dvh-var(--header-h)-2rem)]">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-soft px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">
@@ -300,7 +301,22 @@ export function TemplateGallery() {
           </div>
         </div>
       </div>
-      {previewing && <PreviewDialog open onOpenChange={(o) => !o && setPreviewing(null)} content={previewing.content} title={previewing.name} />}
+      {previewing && (
+        <PreviewDialog
+          open
+          onOpenChange={(o) => !o && setPreviewing(null)}
+          content={previewing.content}
+          title={previewing.name}
+          footer={
+            <>
+              <OutlineButton onClick={() => setPreviewing(null)}>Back to gallery</OutlineButton>
+              <PrimaryButton onClick={() => (campaignId && section !== "layouts" ? use(previewing) : customize(previewing))} disabled={busy}>
+                {busy ? "Opening…" : primaryLabel}
+              </PrimaryButton>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

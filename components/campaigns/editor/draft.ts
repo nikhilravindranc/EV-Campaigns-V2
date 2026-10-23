@@ -39,6 +39,7 @@ export function draftFromCampaign(c: Campaign): CampaignDraft {
     replyTo: c.replyTo ?? c.senderEmail ?? DEFAULT_SENDER.email,
     subject: c.subject ?? "",
     previewText: c.previewText ?? "",
+    abTest: c.abTest ? { ...c.abTest } : null,
     message: c.message ?? "",
     trackReplies: c.trackReplies ?? false,
     trackOpens: c.trackOpens ?? true,
@@ -49,11 +50,11 @@ export function draftFromCampaign(c: Campaign): CampaignDraft {
   };
 }
 
-export type DraftField = "name" | "audience" | "senderEmail" | "senderName" | "replyTo" | "subject" | "previewText" | "message" | "content";
+export type DraftField = "name" | "audience" | "senderEmail" | "senderName" | "replyTo" | "subject" | "subjectB" | "previewText" | "message" | "content";
 export type DraftErrors = Partial<Record<DraftField, string>>;
 
 /** Order matches the page, so "first error" scrolls top-down. */
-export const FIELD_ORDER: DraftField[] = ["name", "audience", "senderEmail", "senderName", "replyTo", "subject", "previewText", "message", "content"];
+export const FIELD_ORDER: DraftField[] = ["name", "audience", "senderEmail", "senderName", "replyTo", "subject", "subjectB", "previewText", "message", "content"];
 
 export function validateDraft(d: CampaignDraft, c: Pick<Campaign, "type">): DraftErrors {
   const e: DraftErrors = {};
@@ -76,6 +77,12 @@ export function validateDraft(d: CampaignDraft, c: Pick<Campaign, "type">): Draf
   else if (!isValidEmail(d.replyTo)) e.replyTo = "Enter a valid email address";
   if (d.subject.trim().length < 3) e.subject = "Enter a subject line (at least 3 characters)";
   else if (d.subject.trim().length > 150) e.subject = "Keep the subject under 150 characters";
+  if (d.abTest) {
+    const b = d.abTest.subjectB.trim();
+    if (b.length < 3) e.subjectB = "Enter the second subject line (at least 3 characters)";
+    else if (b.toLowerCase() === d.subject.trim().toLowerCase()) e.subjectB = "Subject B must differ from subject A, or there is nothing to compare";
+    else if (b.length > 150) e.subjectB = "Keep the subject under 150 characters";
+  }
   if (d.previewText.trim().length > 150) e.previewText = "Keep the preheader under 150 characters";
   if (!d.content) e.content = "Choose a template or create the email content";
   return e;
@@ -88,6 +95,7 @@ export function editFromDraft(d: CampaignDraft, c: Pick<Campaign, "type">): Camp
     ...common,
     subject: d.subject.trim(),
     previewText: d.previewText.trim(),
+    abTest: d.abTest ? { ...d.abTest, subjectB: d.abTest.subjectB.trim() } : null,
     senderName: d.senderName.trim(),
     senderEmail: d.senderEmail.trim(),
     replyTo: d.replyTo.trim(),

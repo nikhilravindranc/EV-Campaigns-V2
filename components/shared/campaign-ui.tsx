@@ -92,7 +92,7 @@ export function CardHeader({ title, subtitle, action, className }: { title: Reac
     <header className={cn("flex items-start gap-3 px-5 pt-4 pb-3", className)}>
       <div className="min-w-0">
         <h2 className="flex items-center gap-1.5 truncate text-[15px] leading-6 font-semibold text-ink">{title}</h2>
-        {subtitle && <p className="truncate text-[12px] leading-4 text-ink-muted">{subtitle}</p>}
+        {subtitle && <p className="line-clamp-2 text-[12px] leading-4 text-ink-muted">{subtitle}</p>}
       </div>
       {action && <div className="ml-auto flex shrink-0 items-center gap-2">{action}</div>}
     </header>
